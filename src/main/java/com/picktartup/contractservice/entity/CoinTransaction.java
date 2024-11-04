@@ -11,7 +11,6 @@ import java.time.LocalDateTime;
 @Setter
 @Getter
 @Table(name ="cointransaction")
-@Entity
 public class CoinTransaction {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "transaction_seq_generator")

@@ -10,7 +10,6 @@ import lombok.*;
 @Setter
 @Getter
 @Table(name = "wallet")
-@Entity
 public class Wallet {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "wallet_seq_generator")

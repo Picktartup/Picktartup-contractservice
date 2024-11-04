@@ -13,7 +13,6 @@ import java.util.Set;
 @Setter
 @Getter
 @Table(name ="startup")
-@Entity
 public class Startup {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "startup_seq_generator")
@@ -28,7 +27,7 @@ public class Startup {
     private String name;
     private String description;
     private String category;
-    private String progress;
+    private Integer progress;
     private Double ssi;
     // 계약 시작 날짜
     private LocalDateTime contractStartDate;
