@@ -20,18 +20,18 @@ public class Contract {
     @Column(name = "contract_id")
     private Long contractId;
 
+    // 계약 체결일자
     private LocalDateTime signedAt;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private ContractStatus status;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    private Users users;
+    @Column(nullable = false)
+    private Long userId;
 
-    @ManyToOne
-    @JoinColumn(name = "startup_id", nullable = false)
-    private Startup startup;
+    @Column(nullable = false)
+    private Long startupId;
 
     @OneToOne(mappedBy = "contract", cascade = CascadeType.ALL)
     private ContractDetails contractDetails;

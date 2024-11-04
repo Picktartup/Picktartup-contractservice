@@ -12,7 +12,6 @@ import java.util.Set;
 @Setter
 @Getter
 @Table(name ="users")
-@Entity
 public class Users {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "users_seq_generator")
