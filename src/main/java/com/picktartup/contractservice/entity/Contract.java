@@ -35,5 +35,4 @@ public class Contract {
 
     @OneToOne(mappedBy = "contract", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private ContractDetails contractDetails;
-
 }

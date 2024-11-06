@@ -1,13 +1,10 @@
 package com.picktartup.contractservice.repository;
 
-import com.picktartup.contractservice.entity.Contract;
 import com.picktartup.contractservice.entity.ContractDetails;
-
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-
-import java.util.Optional;
 
 public interface ContractDetailsRepository extends JpaRepository<ContractDetails, Long> {
+
+    // Contract 엔티티의 contractId를 통해 ContractDetails 조회
+    ContractDetails findByContract_ContractId(Long contractId);
 }

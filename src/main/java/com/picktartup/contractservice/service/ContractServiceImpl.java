@@ -2,8 +2,13 @@ package com.picktartup.contractservice.service;
 
 import com.picktartup.contractservice.dto.ContractDetailResponse;
 import com.picktartup.contractservice.dto.ContractImageResponse;
+import com.picktartup.contractservice.dto.ContractListResponse;
 import com.picktartup.contractservice.dto.ContractRequest;
-import com.picktartup.contractservice.entity.*;
+import com.picktartup.contractservice.entity.Contract;
+import com.picktartup.contractservice.entity.ContractDetails;
+import com.picktartup.contractservice.entity.ContractStatus;
+import com.picktartup.contractservice.entity.Startup;
+import com.picktartup.contractservice.entity.Users;
 import com.picktartup.contractservice.mock.StartupMock;
 import com.picktartup.contractservice.mock.UserMock;
 import com.picktartup.contractservice.repository.ContractDetailsRepository;
@@ -11,7 +16,8 @@ import com.picktartup.contractservice.repository.ContractRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
+import java.util.ArrayList;
+import java.util.List;
 
 @RequiredArgsConstructor
 @Service
@@ -19,6 +25,19 @@ public class ContractServiceImpl implements ContractService{
 
     private final ContractRepository contractRepository;
     private final ContractDetailsRepository contractDetailsRepository;
+
+
+    private static ContractDetails getContractDetails(ContractRequest contractRequest, Contract contract) {
+        ContractDetails contractDetails = new ContractDetails();
+        contractDetails.setContract(contract);
+        contractDetails.setContractAddress(contractRequest.getContractAddress());
+        contractDetails.setTokenAmount(contractRequest.getAmount());
+        contractDetails.setImgUrl(contractRequest.getImgUrl());
+        contractDetails.setInvestorSignature(contractRequest.getInvestorSignature());
+        contractDetails.setStartupSignature(contractRequest.getStartupSignature());
+        contractDetails.setContract_at(contractRequest.getContractAt());
+        return contractDetails;
+    }
 
     // 계약생성
     @Override
@@ -102,15 +121,29 @@ public class ContractServiceImpl implements ContractService{
     }
 
 
-    private static ContractDetails getContractDetails(ContractRequest contractRequest, Contract contract) {
-        ContractDetails contractDetails = new ContractDetails();
-        contractDetails.setContract(contract);
-        contractDetails.setContractAddress(contractRequest.getContractAddress());
-        contractDetails.setTokenAmount(contractRequest.getAmount());
-        contractDetails.setImgUrl(contractRequest.getImgUrl());
-        contractDetails.setInvestorSignature(contractRequest.getInvestorSignature());
-        contractDetails.setStartupSignature(contractRequest.getStartupSignature());
-        contractDetails.setContract_at(contractRequest.getContractAt());
-        return contractDetails;
+    // 계약 상태에 따른 투자내역 조회
+    @Override
+    public List<ContractListResponse> getContractList(Long userId, ContractStatus contractStatus) {
+        List<Contract> contracts = contractRepository.findByUserIdAndStatus(userId, contractStatus);
+
+        List<ContractListResponse> response = new ArrayList<>();
+        for (Contract contract : contracts) {
+            ContractDetails details = contractDetailsRepository.findByContract_ContractId(contract.getContractId());
+
+            // Startup 정보 요청
+            Long startupId = contract.getStartupId();
+            Startup mockStartup = StartupMock.createMockStartup();
+
+            // ContractResponseDTO 생성
+            ContractListResponse contractResponse = new ContractListResponse(
+                    details.getContract_at(),
+                    details.getTokenAmount(),
+                    contract.getStatus(),
+                    mockStartup.getName(),
+                    mockStartup.getProgress()
+            );
+            response.add(contractResponse);
+        }
+        return response;
     }
 }
