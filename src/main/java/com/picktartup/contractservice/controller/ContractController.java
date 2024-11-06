@@ -43,7 +43,7 @@ public class ContractController {
         return ApiResponse.ok(contractService.getContractDetail(contractId));
     }
 
-    // 계약상태에 따른 계약 리스트 조회
+    // 계약 상태에 따른 투자 리스트 조회
     @GetMapping("/api/v1/contracts/{contract_status}")
     public ApiResponse<List<ContractListResponse>> getContractList(@PathVariable ContractStatus contract_status) {
         // 통합 테스트 때 jwt 토큰으로 userId 받아올 예정

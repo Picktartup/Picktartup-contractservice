@@ -121,7 +121,7 @@ public class ContractServiceImpl implements ContractService{
     }
 
 
-    // 계약 상태에 따른 투자내역 조회
+    // 계약 상태에 따른 투자 리스트 조회
     @Override
     public List<ContractListResponse> getContractList(Long userId, ContractStatus contractStatus) {
         List<Contract> contracts = contractRepository.findByUserIdAndStatus(userId, contractStatus);
