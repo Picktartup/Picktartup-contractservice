@@ -33,7 +33,7 @@ public class Contract {
     @Column(nullable = false)
     private Long startupId;
 
-    @OneToOne(mappedBy = "contract", cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "contract", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private ContractDetails contractDetails;
 
 }
