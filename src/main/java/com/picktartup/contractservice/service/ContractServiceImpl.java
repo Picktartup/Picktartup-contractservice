@@ -90,19 +90,24 @@ public class ContractServiceImpl implements ContractService{
         // 계약 상태에 따른 progressStatus 설정
         int progress = mockStartup.getProgress();
         String progressStatus;
-        switch (contract.getStatus()) {
-            case BEGIN:
-            case ACTIVE:
-                progressStatus = progress + "%";
-                break;
-            case CANCELLED:
-                progressStatus = "취소";
-                break;
-            case COMPLETED:
-                progressStatus = "완료";
-                break;
-            default:
-                throw new RuntimeException("알 수 없는 계약 상태입니다.");
+        if (contract.getStatus() == ContractStatus.ACTIVE) {
+            // ACTIVE 상태일 때만 목표달성도 표시
+            progressStatus = mockStartup.getProgress() + "%";
+        } else {
+            // 다른 상태일 때는 progress 대신 상태에 맞는 메시지 표시
+            switch (contract.getStatus()) {
+                case BEGIN:
+                    progressStatus = "진행 전";
+                    break;
+                case CANCELLED:
+                    progressStatus = "취소";
+                    break;
+                case COMPLETED:
+                    progressStatus = "완료";
+                    break;
+                default:
+                    throw new RuntimeException("알 수 없는 계약 상태입니다.");
+            }
         }
 
         // ContractDetailResponseDto 생성 및 반환
