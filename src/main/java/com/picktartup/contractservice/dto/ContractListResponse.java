@@ -13,9 +13,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ContractListResponse {
+    private Long contractId;
     private LocalDateTime contractAt;
     private Double tokenAmount;
     private ContractStatus contractStatus;
     private String startupName;
-    private Integer startupGoalProgress;
 }

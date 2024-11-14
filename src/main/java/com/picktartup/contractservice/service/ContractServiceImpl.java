@@ -141,11 +141,11 @@ public class ContractServiceImpl implements ContractService{
 
             // ContractResponseDTO 생성
             ContractListResponse contractResponse = new ContractListResponse(
+                    contract.getContractId(),
                     details.getContract_at(),
                     details.getTokenAmount(),
                     contract.getStatus(),
-                    mockStartup.getName(),
-                    mockStartup.getProgress()
+                    mockStartup.getName()
             );
             response.add(contractResponse);
         }
