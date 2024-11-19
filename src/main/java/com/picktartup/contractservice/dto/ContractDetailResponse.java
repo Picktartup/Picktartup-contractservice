@@ -18,7 +18,7 @@ public class ContractDetailResponse {
     private String startupDescription;
     private String progressStatus; // contractStatus 상태에 따라 % 또는 취소, 완료
     private Integer goalCoin;
-    private Integer currentCoin;
+    private Double currentCoin;
     private String contractStatus;
     private Double investedTokenAmount; // 투자토큰
     private LocalDateTime transactionCreatedAt; // 거래 생성일

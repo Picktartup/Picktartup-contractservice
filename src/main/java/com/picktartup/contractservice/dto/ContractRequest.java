@@ -12,13 +12,15 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ContractRequest {
+
     private Long userId;
     private Long startupId;
-    private Double amount;
+
+    private LocalDateTime contractAt;
     private String contractAddress;
-    private String imgUrl;
+    private Double amount;
+
     private String investorSignature;
     private String startupSignature;
-    private LocalDateTime contractAt;
 
 }
