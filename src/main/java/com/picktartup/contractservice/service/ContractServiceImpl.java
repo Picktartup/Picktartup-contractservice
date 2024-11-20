@@ -1,21 +1,26 @@
 package com.picktartup.contractservice.service;
 
-import com.picktartup.contractservice.dto.ContractDetailResponse;
-import com.picktartup.contractservice.dto.ContractImageResponse;
-import com.picktartup.contractservice.dto.ContractListResponse;
-import com.picktartup.contractservice.dto.ContractRequest;
-import com.picktartup.contractservice.entity.Contract;
-import com.picktartup.contractservice.entity.ContractDetails;
-import com.picktartup.contractservice.entity.ContractStatus;
-import com.picktartup.contractservice.entity.Startup;
-import com.picktartup.contractservice.entity.Users;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.itextpdf.html2pdf.HtmlConverter;
+import com.picktartup.contractservice.dto.*;
+import com.picktartup.contractservice.entity.*;
 import com.picktartup.contractservice.mock.StartupMock;
 import com.picktartup.contractservice.mock.UserMock;
 import com.picktartup.contractservice.repository.ContractDetailsRepository;
 import com.picktartup.contractservice.repository.ContractRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,16 +28,21 @@ import java.util.List;
 @Service
 public class ContractServiceImpl implements ContractService{
 
+    @Autowired
     private final ContractRepository contractRepository;
+    @Autowired
     private final ContractDetailsRepository contractDetailsRepository;
-
+    @Autowired
+    private TemplateEngine templateEngine;
+    @Autowired
+    private AmazonS3 s3Client;
 
     private static ContractDetails getContractDetails(ContractRequest contractRequest, Contract contract) {
         ContractDetails contractDetails = new ContractDetails();
         contractDetails.setContract(contract);
         contractDetails.setContractAddress(contractRequest.getContractAddress());
         contractDetails.setTokenAmount(contractRequest.getAmount());
-        contractDetails.setImgUrl(contractRequest.getImgUrl());
+        contractDetails.setImgUrl(null);
         contractDetails.setInvestorSignature(contractRequest.getInvestorSignature());
         contractDetails.setStartupSignature(contractRequest.getStartupSignature());
         contractDetails.setContract_at(contractRequest.getContractAt());
@@ -41,7 +51,7 @@ public class ContractServiceImpl implements ContractService{
 
     // 계약생성
     @Override
-    public String createContract(ContractRequest contractRequest) {
+    public ContractResponse createContract(ContractRequest contractRequest) {
         Contract contract = new Contract();
 
         // user api에 user 정보 요청 (contractRequest.getUserId)
@@ -57,11 +67,55 @@ public class ContractServiceImpl implements ContractService{
 
         contract = contractRepository.save(contract);
 
+        // 스마트 컨트랙트 요청
+
+        // pdf 생성
+        // Step 1: Generate HTML from Thymeleaf
+        Context context = new Context();
+        context.setVariable("investorName", userMock.getUsername());
+        context.setVariable("investorWallet", userMock.getWallet().getAddress());
+        context.setVariable("companyName", startupMock.getName());
+        context.setVariable("companyAddress", startupMock.getAddress());
+        context.setVariable("ceoName", startupMock.getCeoName());
+        context.setVariable("companyRegistrationNumber", startupMock.getRegistrationNum());
+        context.setVariable("companyWallet", startupMock.getWallet().getAddress());
+        context.setVariable("contractPeriod", startupMock.getContractPeriod());
+        context.setVariable("investmentAmount", contractRequest.getAmount());
+        context.setVariable("smartContractAddress", contractRequest.getContractAddress());
+        context.setVariable("contractAt", contractRequest.getContractAt().format(DateTimeFormatter.ofPattern("yyyy년 MM월 dd일")));
+        context.setVariable("transactionHash", "0x6fcb8e3d34f8e67c98a31d7a8b1f045d2e9e9b3a2b1c3d8f7e9a67b9c8d5e4f6\n");
+
+        String htmlContent = templateEngine.process("contract-template", context);
+
+        // Step 2: Convert HTML to PDF
+        ByteArrayOutputStream pdfOutputStream = new ByteArrayOutputStream();
+        try {
+            HtmlConverter.convertToPdf(new ByteArrayInputStream(htmlContent.getBytes(StandardCharsets.UTF_8)), pdfOutputStream);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        byte[] pdfBytes = pdfOutputStream.toByteArray();
+
+        // Step 3: Upload PDF to S3
+        String bucketName = "contract-image";
+        String pdfFileName = "contracts/" + System.currentTimeMillis() + ".pdf";
+        ObjectMetadata metadata = new ObjectMetadata();
+        metadata.setContentType("application/pdf");
+        metadata.setContentLength(pdfBytes.length);
+
+        s3Client.putObject(bucketName, pdfFileName, new ByteArrayInputStream(pdfBytes), metadata);
+
+        // Step 4: Get S3 URL
+        URL s3Url = s3Client.getUrl(bucketName, pdfFileName);
+
         // 계약상세정보 등록
+        // Step 5: Save S3 URL
         ContractDetails contractDetails = getContractDetails(contractRequest, contract);
+        contractDetails.setImgUrl(s3Url.toString());
         contractDetailsRepository.save(contractDetails);
 
-        return "계약 생성 완료";
+        // Step 6: Return S3 URL in response
+        return new ContractResponse(s3Url.toString());
     }
 
     // 계약서 이미지 조회
