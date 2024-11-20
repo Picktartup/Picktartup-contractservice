@@ -15,7 +15,8 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
     Optional<Contract> findByIdWithDetails(@Param("contractId") Long contractId);
 
     // 계약 상태에 따른 투자 리스트 조회
-    @EntityGraph(attributePaths = {"contractDetails"})
-    List<Contract> findByUserIdAndStatus(Long userId, ContractStatus status);
+    @Query("SELECT c FROM Contract c LEFT JOIN FETCH c.contractDetails WHERE c.userId = :userId AND c.status IN (:statuses)")
+    List<Contract> findContractsByUserIdAndStatuses(@Param("userId") Long userId,
+                                                    @Param("statuses") List<ContractStatus> statuses);
 
 }

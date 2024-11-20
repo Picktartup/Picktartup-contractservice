@@ -5,6 +5,7 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.itextpdf.html2pdf.HtmlConverter;
 import com.picktartup.contractservice.dto.*;
 import com.picktartup.contractservice.entity.*;
+import com.picktartup.contractservice.mock.StartupDetailsMock;
 import com.picktartup.contractservice.mock.StartupMock;
 import com.picktartup.contractservice.mock.UserMock;
 import com.picktartup.contractservice.repository.ContractDetailsRepository;
@@ -20,8 +21,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @RequiredArgsConstructor
@@ -45,11 +48,12 @@ public class ContractServiceImpl implements ContractService{
         contractDetails.setImgUrl(null);
         contractDetails.setInvestorSignature(contractRequest.getInvestorSignature());
         contractDetails.setStartupSignature(contractRequest.getStartupSignature());
-        contractDetails.setContract_at(contractRequest.getContractAt());
+        contractDetails.setContractAt(contractRequest.getContractAt());
+
         return contractDetails;
     }
 
-    // 계약생성
+    // 계약 생성
     @Override
     public ContractResponse createContract(ContractRequest contractRequest) {
         Contract contract = new Contract();
@@ -59,6 +63,7 @@ public class ContractServiceImpl implements ContractService{
 
         // startup api에 startup 정보 요청 (contractRequest.getStartupId)
         Startup startupMock = StartupMock.createMockStartup();
+        StartupDetails startupDetailsMock = StartupDetailsMock.createMockStartupDetails();
 
         // 계약정보 등록
         contract.setUserId(contractRequest.getUserId());
@@ -75,11 +80,11 @@ public class ContractServiceImpl implements ContractService{
         context.setVariable("investorName", userMock.getUsername());
         context.setVariable("investorWallet", userMock.getWallet().getAddress());
         context.setVariable("companyName", startupMock.getName());
-        context.setVariable("companyAddress", startupMock.getAddress());
-        context.setVariable("ceoName", startupMock.getCeoName());
-        context.setVariable("companyRegistrationNumber", startupMock.getRegistrationNum());
+        context.setVariable("companyAddress", startupDetailsMock.getAddress());
+        context.setVariable("ceoName", startupDetailsMock.getCeoName());
+        context.setVariable("companyRegistrationNumber", startupDetailsMock.getRegistrationNum());
         context.setVariable("companyWallet", startupMock.getWallet().getAddress());
-        context.setVariable("contractPeriod", startupMock.getContractPeriod());
+        context.setVariable("contractPeriod", startupDetailsMock.getContractPeriod());
         context.setVariable("investmentAmount", contractRequest.getAmount());
         context.setVariable("smartContractAddress", contractRequest.getContractAddress());
         context.setVariable("contractAt", contractRequest.getContractAt().format(DateTimeFormatter.ofPattern("yyyy년 MM월 dd일")));
@@ -118,15 +123,60 @@ public class ContractServiceImpl implements ContractService{
         return new ContractResponse(s3Url.toString());
     }
 
-    // 계약서 이미지 조회
+    // 계약 상태에 따른 투자 리스트 조회
     @Override
-    public ContractImageResponse getContractImage(Long contractId) {
-        // Contract와 ContractDetails를 한 번의 쿼리로 조회
-        Contract contract = contractRepository.findByIdWithDetails(contractId)
-                .orElseThrow(() -> new RuntimeException("해당 계약서를 찾을 수 없습니다."));
+    public List<ContractListResponse> getContractList(Long userId, String contractStatus) {
+        List<ContractStatus> statuses;
 
-        // imgUrl을 DTO로 반환
-        return new ContractImageResponse(contract.getContractDetails().getImgUrl());
+        // contractStatus 값에 따라 상태 리스트를 설정
+        if ("active".equalsIgnoreCase(contractStatus)) {
+            statuses = Arrays.asList(ContractStatus.BEGIN, ContractStatus.ACTIVE);
+        } else if ("completed".equalsIgnoreCase(contractStatus)) {
+            statuses = Arrays.asList(ContractStatus.COMPLETED, ContractStatus.CANCELLED);
+        } else {
+            throw new IllegalArgumentException("Invalid contract status: " + contractStatus);
+        }
+
+        // 계약 리스트 조회
+        List<Contract> contracts = contractRepository.findContractsByUserIdAndStatuses(userId, statuses);
+
+        // 응답 리스트 생성
+        List<ContractListResponse> response = new ArrayList<>();
+        for (Contract contract : contracts) {
+            // 연관된 ContractDetails 조회
+            ContractDetails details = contractDetailsRepository.findByContract_ContractId(contract.getContractId());
+            if (details == null) {
+                continue; // contractDetails가 없는 경우 건너뜀
+            }
+
+            // Mock 데이터 (나중에 실제 데이터로 변경 필요)
+            Startup startupMock = StartupMock.createMockStartup();
+            StartupDetails startupDetailsMock = StartupDetailsMock.createMockStartupDetails();
+
+            // 반환 데이터 설정
+            LocalDateTime contractDate = "active".equalsIgnoreCase(contractStatus)
+                    ? details.getContractAt()
+                    : contract.getSignedAt().plusMonths(startupDetailsMock.getContractPeriod());
+
+            Double tokenAmount = "active".equalsIgnoreCase(contractStatus)
+                    ? details.getTokenAmount()
+                    : details.getTokenAmount() * (1 + startupDetailsMock.getRoi() / 100);
+            Double progress = "active".equalsIgnoreCase(contractStatus)
+                    ? Double.valueOf(startupMock.getProgress())
+                    : startupDetailsMock.getRoi();
+
+            // ContractListResponse 객체 생성
+            ContractListResponse contractResponse = new ContractListResponse(
+                    contract.getContractId(),
+                    contractDate,
+                    startupMock.getName(),
+                    tokenAmount,
+                    contract.getStatus(),
+                    progress
+            );
+            response.add(contractResponse);
+        }
+        return response;
     }
 
     // 계약서 상세 조회
@@ -138,71 +188,35 @@ public class ContractServiceImpl implements ContractService{
         ContractDetails contractDetails = contract.getContractDetails();
 
         // Mock 대체 외부 API 호출하여 스타트업 정보 가져오기
-        Long startupId = contract.getStartupId();
-        Startup mockStartup = StartupMock.createMockStartup();
+        Startup startupMock = StartupMock.createMockStartup();
+        StartupDetails startupDetailsMock = StartupDetailsMock.createMockStartupDetails();
 
-        // 계약 상태에 따른 progressStatus 설정
-        int progress = mockStartup.getProgress();
-        String progressStatus;
-        if (contract.getStatus() == ContractStatus.ACTIVE) {
-            // ACTIVE 상태일 때만 목표달성도 표시
-            progressStatus = mockStartup.getProgress() + "%";
-        } else {
-            // 다른 상태일 때는 progress 대신 상태에 맞는 메시지 표시
-            switch (contract.getStatus()) {
-                case BEGIN:
-                    progressStatus = "진행 전";
-                    break;
-                case CANCELLED:
-                    progressStatus = "취소";
-                    break;
-                case COMPLETED:
-                    progressStatus = "완료";
-                    break;
-                default:
-                    throw new RuntimeException("알 수 없는 계약 상태입니다.");
-            }
-        }
+        // ROI와 반환 토큰 설정 로직
+        Double roi = (startupDetailsMock.getRoi() != null) ? startupDetailsMock.getRoi() : null;
+
+        Double returnToken = (roi != null)
+                ? contractDetails.getTokenAmount() * (1 + roi / 100)
+                : null;
 
         // ContractDetailResponseDto 생성 및 반환
         return new ContractDetailResponse(
-                mockStartup.getName(),
-                mockStartup.getCategory(),
-                mockStartup.getDescription(),
-                progressStatus,
-                mockStartup.getGoalCoin(),
-                mockStartup.getCurrentCoin(),
                 contract.getStatus().toString(),
+                contractDetails.getContractAt(),
+                contract.getSignedAt(),
+                contract.getSignedAt().plusMonths(startupDetailsMock.getContractPeriod()),
                 contractDetails.getTokenAmount(),
-                contractDetails.getContract_at(),
-                contractDetails.getContractAddress()
+                returnToken,
+                startupMock.getName(),
+                startupMock.getProgress(),
+                roi,
+                startupMock.getLogoUrl(),
+                startupDetailsMock.getDescription(),
+                startupMock.getCategory(),
+                startupDetailsMock.getInvestmentStatus(),
+                startupDetailsMock.getInvestmentRound(),
+                startupDetailsMock.getExpectedRoi(),
+                startupMock.getLogoUrl(),
+                contractDetails.getImgUrl()
         );
-    }
-
-
-    // 계약 상태에 따른 투자 리스트 조회
-    @Override
-    public List<ContractListResponse> getContractList(Long userId, ContractStatus contractStatus) {
-        List<Contract> contracts = contractRepository.findByUserIdAndStatus(userId, contractStatus);
-
-        List<ContractListResponse> response = new ArrayList<>();
-        for (Contract contract : contracts) {
-            ContractDetails details = contractDetailsRepository.findByContract_ContractId(contract.getContractId());
-
-            // Startup 정보 요청
-            Long startupId = contract.getStartupId();
-            Startup mockStartup = StartupMock.createMockStartup();
-
-            // ContractResponseDTO 생성
-            ContractListResponse contractResponse = new ContractListResponse(
-                    contract.getContractId(),
-                    details.getContract_at(),
-                    details.getTokenAmount(),
-                    contract.getStatus(),
-                    mockStartup.getName()
-            );
-            response.add(contractResponse);
-        }
-        return response;
     }
 }

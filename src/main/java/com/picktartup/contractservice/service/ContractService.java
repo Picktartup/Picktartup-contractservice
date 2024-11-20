@@ -9,10 +9,7 @@ import java.util.List;
 public interface ContractService {
 
     ContractResponse createContract(ContractRequest contractRequest);
-
-    ContractImageResponse getContractImage(Long contractId);
-
+    List<ContractListResponse> getContractList(Long userId, String contractStatus);
     ContractDetailResponse getContractDetail(Long contractId);
 
-    List<ContractListResponse> getContractList(Long userId, ContractStatus contractStatus);
 }

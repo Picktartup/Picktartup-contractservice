@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/api/v1/contracts")
@@ -19,40 +18,25 @@ public class ContractController {
 
     private final ContractService contractService;
 
-    // 계약생성
+    // 계약 생성
     @PostMapping("/transaction")
     public ApiResponse<ContractResponse> createContract(@RequestBody ContractRequest contractRequest) {
         return ApiResponse.ok(contractService.createContract(contractRequest));
     }
 
-    // 계약서 이미지 조회
-    @GetMapping("/{contractId}/image")
-    public ApiResponse<ContractImageResponse> getContractImage(@PathVariable("contractId") Long contractId) {
-        return ApiResponse.ok(contractService.getContractImage(contractId));
-    }
-
-    // 계약서 상세 조회
-    @GetMapping("/transactions/{contractId}")
-    public ApiResponse<ContractDetailResponse> getTransactionDetails(@PathVariable Long contractId) {
-        return ApiResponse.ok(contractService.getContractDetail(contractId));
-    }
-
-    // 계약 상태에 따른 투자 리스트 조회
-    @GetMapping("/{contract_status}")
-    public ApiResponse<List<ContractListResponse>> getContractList(@PathVariable ContractStatus contract_status) {
+    // 계약 상태에 따른 투자 리스트 조회 : 진행 중 - active / 완료 - completed
+    @GetMapping("/status/{contractStatus}")
+    public ApiResponse<List<ContractListResponse>> getContractList(@PathVariable String contractStatus) {
         // 통합 테스트 때 jwt 토큰으로 userId 받아올 예정
         Users mockUser = UserMock.createMockUser();
         Long userId = mockUser.getUserId();
-        return ApiResponse.ok(contractService.getContractList(userId, contract_status));
+        return ApiResponse.ok(contractService.getContractList(userId, contractStatus));
     }
 
-
-
-
-
-
-
-
-
+    // 계약서 상세 조회
+    @GetMapping("/details/{contractId}")
+    public ApiResponse<ContractDetailResponse> getTransactionDetails(@PathVariable Long contractId) {
+        return ApiResponse.ok(contractService.getContractDetail(contractId));
+    }
 
 }
