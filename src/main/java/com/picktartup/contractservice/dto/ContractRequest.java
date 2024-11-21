@@ -23,4 +23,6 @@ public class ContractRequest {
     private String investorSignature;
     private String startupSignature;
 
+    private String transactionHash;
+
 }
