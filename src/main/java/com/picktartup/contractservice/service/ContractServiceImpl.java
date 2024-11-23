@@ -10,6 +10,7 @@ import com.picktartup.contractservice.entity.*;
 import com.picktartup.contractservice.mock.StartupDetailsMock;
 import com.picktartup.contractservice.mock.StartupMock;
 import com.picktartup.contractservice.mock.UserMock;
+import com.picktartup.contractservice.mock.WalletMock;
 import com.picktartup.contractservice.repository.ContractDetailsRepository;
 import com.picktartup.contractservice.repository.ContractRepository;
 import lombok.RequiredArgsConstructor;
@@ -84,6 +85,7 @@ public class ContractServiceImpl implements ContractService{
 
         // user api에 user 정보 요청 (contractRequest.getUserId)
         Users userMock = UserMock.createMockUser();
+        Wallet walletMock = WalletMock.createWalletMock();
 
         // startup api에 startup 정보 요청 (contractRequest.getStartupId)
         Startup startupMock = StartupMock.createMockStartup();
@@ -101,7 +103,7 @@ public class ContractServiceImpl implements ContractService{
         // Step 1: Generate HTML from Thymeleaf
         Context context = new Context();
         context.setVariable("investorName", userMock.getUsername());
-        context.setVariable("investorWallet", userMock.getWallet().getAddress());
+        context.setVariable("investorWallet", walletMock.getAddress());
         context.setVariable("companyName", startupMock.getName());
         context.setVariable("companyAddress", startupDetailsMock.getAddress());
         context.setVariable("ceoName", startupDetailsMock.getCeoName());

@@ -2,16 +2,20 @@ package com.picktartup.contractservice.mock;
 
 import com.picktartup.contractservice.entity.Startup;
 import com.picktartup.contractservice.entity.Wallet;
+import com.picktartup.contractservice.entity.WalletStatus;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 
 public class StartupMock {
     public static Startup createMockStartup() {
         Wallet wallet = Wallet.builder()
-                .walletId(2L)
-                .address("mock_startup_wallet_address")
-                .balance(5000.0)
+                .userId(1L)
+                .keystoreFilename("keystore1.json")
+                .address("0x1234567890abcdef1234567890abcdef12345678")
+                .balance(new BigDecimal("5000.0"))
+                .status(WalletStatus.ACTIVE)
                 .build();
 
         return Startup.builder()

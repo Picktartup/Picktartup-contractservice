@@ -19,10 +19,6 @@ public class Users {
     @Column(name = "users_id")
     private Long userId;
 
-    @OneToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "wallet_id")
-    private Wallet wallet;
-
     private String username;
     private String email;
     private String encryptedPwd;
