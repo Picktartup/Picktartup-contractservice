@@ -4,10 +4,14 @@ import com.picktartup.contractservice.contracts.PickenToken;
 import com.picktartup.contractservice.contracts.StartupFunding;
 import com.picktartup.contractservice.dto.CampaignDto;
 import com.picktartup.contractservice.dto.TokenDto;
+import com.picktartup.contractservice.entity.TokenTransferTransaction;
+import com.picktartup.contractservice.entity.TransactionStatus;
+import com.picktartup.contractservice.entity.TransactionType;
 import com.picktartup.contractservice.entity.Wallet;
 import com.picktartup.contractservice.exception.BusinessException;
 import com.picktartup.contractservice.exception.ErrorCode;
 import com.picktartup.contractservice.mock.WalletMock;
+import com.picktartup.contractservice.repository.TokenTransferTransactionRepository;
 import com.picktartup.contractservice.utils.TokenUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +46,7 @@ public class StartupFundingService {
     private final String tokenContractAddress;
     private final KeystoreService keystoreService;
     private final ContractGasProvider gasProvider;
+    private final TokenTransferTransactionRepository tokenTransferTransactionRepository;
 
     Wallet walletMock = WalletMock.createWalletMock();
 
@@ -110,7 +115,6 @@ public class StartupFundingService {
         }
     }
 
-    // 투자
     @Transactional
     public CampaignDto.Investment.Response invest(
             Long campaignId,
@@ -128,6 +132,18 @@ public class StartupFundingService {
                 investorWallet,
                 request.getWalletPassword()
         );
+
+        // 트랜잭션 기록 생성
+        TokenTransferTransaction transaction = TokenTransferTransaction.builder()
+                .userId(request.getUserId())
+                .campaignId(campaignId)
+                .walletAddress(investorWallet.getAddress())
+                .tokenAmount(BigDecimal.valueOf(request.getAmount()))
+                .status(TransactionStatus.PENDING)
+                .type(TransactionType.INVESTMENT)
+                .build();
+
+        TokenTransferTransaction savedTransaction = tokenTransferTransactionRepository.save(transaction);
 
         try {
             // PICKEN -> Wei 단위로 변환
@@ -154,6 +170,8 @@ public class StartupFundingService {
                     contract.getInvestmentMadeEvents(receipt);
 
             if (events.isEmpty()) {
+                // 트랜잭션 실패 처리
+                updateTransactionFailure(savedTransaction, "Investment event not found");
                 throw new BusinessException(ErrorCode.INVESTMENT_FAILED, "Investment event not found");
             }
 
@@ -161,6 +179,12 @@ public class StartupFundingService {
 
             // Wei -> PICKEN 변환하여 로깅 및 응답
             Long totalRaisedPICKEN = TokenUtils.fromWei(event.totalRaised);
+
+            // 트랜잭션 완료 처리
+            updateTransactionSuccess(savedTransaction, receipt.getTransactionHash());
+
+            // 투자자 지갑 잔액 업데이트
+            updateInvestorWalletBalance(investorWallet, request.getAmount());
 
             log.info("투자 완료 - userId: {}, campaignId: {}, amount: {} PICKEN, totalRaised: {} PICKEN, txHash: {}",
                     request.getUserId(),
@@ -178,10 +202,36 @@ public class StartupFundingService {
                     .build();
 
         } catch (Exception e) {
+            // 트랜잭션 실패 처리
+            updateTransactionFailure(savedTransaction, e.getMessage());
+
             log.error("투자 실패 - userId: {}, campaignId: {}, amount: {} PICKEN",
                     request.getUserId(), campaignId, request.getAmount(), e);
             throw new BusinessException(ErrorCode.INVESTMENT_FAILED, e.getMessage());
         }
+    }
+
+    // 트랜잭션 성공 처리
+    private void updateTransactionSuccess(TokenTransferTransaction transaction, String txHash) {
+        transaction.setTransactionHash(txHash);
+        transaction.setStatus(TransactionStatus.COMPLETED);
+        transaction.setCompletedAt(LocalDateTime.now());
+        tokenTransferTransactionRepository.save(transaction);
+    }
+
+    // 트랜잭션 실패 처리
+    private void updateTransactionFailure(TokenTransferTransaction transaction, String errorMessage) {
+        transaction.setStatus(TransactionStatus.FAILED);
+        transaction.setFailureReason(errorMessage);
+        tokenTransferTransactionRepository.save(transaction);
+    }
+
+    // 투자자 지갑 잔액 업데이트
+    private void updateInvestorWalletBalance(Wallet wallet, Long investmentAmount) {
+        wallet.setBalance(wallet.getBalance().subtract(BigDecimal.valueOf(investmentAmount)));
+
+        //msa 통합 테스트 시 추가
+//        walletRepository.save(wallet);
     }
 
 
