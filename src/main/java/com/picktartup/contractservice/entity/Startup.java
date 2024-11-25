@@ -23,15 +23,13 @@ public class Startup {
     @JoinColumn(name = "wallet_id", nullable = false)
     private Wallet wallet;
 
-    @Column(nullable = false, length = 20)
+    @Column(length = 20, nullable = false)
     private String name;
 
-    @Column(length = 200)
-    private String description;
-
-    @Column(length = 100)
+    @Column(length = 100, nullable = false)
     private String category;
 
+    @Column(nullable = false)
     private Integer progress;
 
     @Column(name = "investment_start_date", nullable = false)
@@ -43,31 +41,14 @@ public class Startup {
     @Column(name = "goal_coin", nullable = false)
     private Integer goalCoin;
 
-    @Column(name = "expected_roi", nullable = false)
-    private Double expectedRoi;
-
     @Column(name = "current_coin", nullable = false)
     private Double currentCoin;
 
-    @Column(name = "investment_status", length = 10, nullable = false)
-    private String investmentStatus;
+    @Column(name = "funding_progress", nullable = false)
+    private Integer fundingProgress;
 
-    @Column(name = "investment_round", length = 20)
-    private String investmentRound;
-
-    private Double roi;
-
-    @Column(length = 100)
-    private String address;
-
-    @Column(name = "ceo_name", length = 100)
-    private String ceoName;
-
-    @Column(name = "registration_num", length = 30)
-    private String registrationNum;
-
-    @Column(name = "contract_period", nullable = false)
-    private Integer contractPeriod;
+    @Column(name = "logo_url", length = 100, nullable = false)
+    private String logoUrl;
 
     @OneToMany(mappedBy = "startup", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Contract> contracts;

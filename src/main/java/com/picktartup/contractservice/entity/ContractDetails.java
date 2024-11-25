@@ -23,19 +23,19 @@ public class ContractDetails {
     @JoinColumn(name = "contract_id", nullable = false)
     private Contract contract;
 
+    // 거래 생성일
+    @Column(nullable = false)
+    private LocalDateTime contractAt;
+
     // tokenAmount 이 자주 변경될 것이 예상되어 ContractDetails를 연관관계의 주인으로
     @Column(nullable = false)
     private Double tokenAmount;
 
     @Column(nullable = false)
-    private String imgUrl;
-
-    @Column(nullable = false)
     private String contractAddress;
 
-    // 거래 생성일
     @Column(nullable = false)
-    private LocalDateTime contract_at;
+    private String imgUrl;
 
     @Column(nullable = false)
     private String investorSignature;
