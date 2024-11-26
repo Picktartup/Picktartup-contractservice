@@ -33,8 +33,6 @@ public class ContractServiceImpl implements ContractService{
         contractDetails.setContractAddress(contractRequest.getContractAddress());
         contractDetails.setTokenAmount(contractRequest.getAmount());
         contractDetails.setImgUrl(contractRequest.getImgUrl());
-        contractDetails.setInvestorSignature(contractRequest.getInvestorSignature());
-        contractDetails.setStartupSignature(contractRequest.getStartupSignature());
         contractDetails.setContract_at(contractRequest.getContractAt());
         return contractDetails;
     }

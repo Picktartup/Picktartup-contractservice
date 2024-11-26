@@ -36,11 +36,4 @@ public class ContractDetails {
     // 거래 생성일
     @Column(nullable = false)
     private LocalDateTime contract_at;
-
-    @Column(nullable = false)
-    private String investorSignature;
-
-    @Column(nullable = false)
-    private String startupSignature;
-
 }
