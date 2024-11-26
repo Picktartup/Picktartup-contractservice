@@ -20,8 +20,8 @@ public class ContractController {
 
     // 계약서 PDF 생성
     @PostMapping("/pdf")
-    public ApiResponse<String> generatePdf(@RequestBody ContractRequest contractRequest) {
-        return ApiResponse.ok(contractService.generatePdf(contractRequest));
+    public ApiResponse<String> generatePdf(@RequestBody ContractPdfRequest contractPdfRequest) {
+        return ApiResponse.ok(contractService.generatePdf(contractPdfRequest));
     }
 
     // 계약 생성

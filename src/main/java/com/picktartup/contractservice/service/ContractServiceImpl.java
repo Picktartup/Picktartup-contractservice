@@ -16,6 +16,7 @@ import com.picktartup.contractservice.repository.ContractRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
@@ -48,38 +49,9 @@ public class ContractServiceImpl implements ContractService{
     // 2) contract.status 컬럼 업데이트 -> BEGIN to ACTIVE
     // how to: 스마트 컨트랙트 컴파일된 파일에서 해당 함수 import
 
-    private static ContractDetails getContractDetails(ContractRequest contractRequest, Contract contract) {
-        ContractDetails contractDetails = new ContractDetails();
-        contractDetails.setContract(contract);
-        contractDetails.setTokenAmount(contractRequest.getAmount());
-        contractDetails.setImgUrl(null);
-        contractDetails.setContractAddress(contractRequest.getContractAddress());
-        contractDetails.setContractAt(contractRequest.getContractAt());
-        return contractDetails;
-    }
-
-    // 임시 계약서 PDF 삭제
-    private void deleteTemporaryPdfs(String bucketName, String userId, String startupId) {
-        String prefix = "contracts/tmp_" + userId + "_" + startupId; // tmp_로 시작하는 파일 패턴
-
-        // S3 버킷에서 객체 나열 및 삭제
-        ObjectListing objectListing = s3Client.listObjects(bucketName);
-        for (S3ObjectSummary objectSummary : objectListing.getObjectSummaries()) {
-            String key = objectSummary.getKey();
-
-            // 파일명이 prefix로 시작하면 삭제
-            if (key.startsWith(prefix)) {
-                System.out.println("Deleting: " + key);
-                s3Client.deleteObject(bucketName, key);
-            }
-        }
-    }
-
     // 계약서 PDF 생성
     @Override
-    public String generatePdf(ContractRequest contractRequest) {
-        URL s3Url;
-
+    public String generatePdf(ContractPdfRequest contractpdfRequest) {
         // user api에 user 정보 요청 (contractRequest.getUserId)
         Users userMock = UserMock.createMockUser();
         Wallet walletMock = WalletMock.createWalletMock();
@@ -88,33 +60,36 @@ public class ContractServiceImpl implements ContractService{
         Startup startupMock = StartupMock.createMockStartup();
         StartupDetails startupDetailsMock = StartupDetailsMock.createMockStartupDetails();
 
-        // 특정 필드가 null이면 []로 텍스트 변환 else 값 그대로
-        String contractAddress = (contractRequest.getContractAddress() != null)
-                ? contractRequest.getContractAddress()
-                : "[스마트 컨트랙트 주소]";
-        String transactionHash = (contractRequest.getTransactionHash() != null)
-                ? contractRequest.getTransactionHash()
+        // (프리뷰 계약서일 경우) 트랜잭션 해시, 투자자 서명 필드를 기본 텍스트/이미지로 처리
+        String transactionHash = (contractpdfRequest.getTransactionHash() != null)
+                ? contractpdfRequest.getTransactionHash()
                 : "[트랜잭션 해시]";
+        String investorSignature = (contractpdfRequest.getInvestorSignature() != null)
+                ? contractpdfRequest.getInvestorSignature()
+                : "https://contract-image.s3.ap-northeast-2.amazonaws.com/signature/investor_null.png";
 
-        // pdf 생성
-        // Step 1: Generate HTML from Thymeleaf
+        // 계약서 PDF 생성 로직
+        // Step 1: Thymeleaf로 HTML 생성 
         Context context = new Context();
         context.setVariable("investorName", userMock.getUsername());
         context.setVariable("investorWallet", walletMock.getAddress());
+
         context.setVariable("companyName", startupMock.getName());
         context.setVariable("companyAddress", startupDetailsMock.getAddress());
         context.setVariable("ceoName", startupDetailsMock.getCeoName());
         context.setVariable("companyRegistrationNumber", startupDetailsMock.getRegistrationNum());
         context.setVariable("companyWallet", startupMock.getWallet().getAddress());
         context.setVariable("contractPeriod", startupDetailsMock.getContractPeriod());
-        context.setVariable("investmentAmount", contractRequest.getAmount());
-        context.setVariable("smartContractAddress", contractAddress); // tmp -> NULL
-        context.setVariable("contractAt", contractRequest.getContractAt().format(DateTimeFormatter.ofPattern("yyyy년 MM월 dd일")));
-        context.setVariable("transactionHash", transactionHash); // tmp -> NULL
+
+        context.setVariable("investmentAmount", contractpdfRequest.getAmount());
+        context.setVariable("contractAt", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy년 MM월 dd일")));
+        context.setVariable("transactionHash", transactionHash);
+        context.setVariable("investorSignatureUrl", investorSignature);
+        context.setVariable("companySignatureUrl", startupDetailsMock.getSignature());
 
         String htmlContent = templateEngine.process("contract-template", context);
 
-        // Step 2: Convert HTML to PDF
+        // Step 2: HTML를 PDF로 변환
         ByteArrayOutputStream pdfOutputStream = new ByteArrayOutputStream();
         try {
             HtmlConverter.convertToPdf(new ByteArrayInputStream(htmlContent.getBytes(StandardCharsets.UTF_8)), pdfOutputStream);
@@ -123,12 +98,12 @@ public class ContractServiceImpl implements ContractService{
         }
         byte[] pdfBytes = pdfOutputStream.toByteArray();
 
-        // Step 3: Upload PDF to S3
+        // Step 3: S3 버킷에 PDF 업로드
         String bucketName = "contract-image";
 
-        // 조건문 적용 -> 특정 필드가 null이면 이름 앞에 tmp_ 붙이기 else 그대로
+        // (프리뷰 계약서일 경우) 파일 이름 앞에 tmp_ 추가
         String prefix;
-        if (contractRequest.getTransactionHash() == null) {
+        if (!StringUtils.hasText(contractpdfRequest.getTransactionHash())) {
             prefix = "tmp_" + userMock.getUserId() + "_" + startupMock.getStartupId();
         } else {
             prefix = userMock.getUserId() + "_" + startupMock.getStartupId();
@@ -141,46 +116,49 @@ public class ContractServiceImpl implements ContractService{
 
         s3Client.putObject(bucketName, pdfFileName, new ByteArrayInputStream(pdfBytes), metadata);
 
-        // Step 4: Get S3 URL
-        s3Url = s3Client.getUrl(bucketName, pdfFileName);
-
+        // Step 4: S3 버킷에 생성된 계약서 URL 가져오기
+        URL s3Url = s3Client.getUrl(bucketName, pdfFileName);
         return s3Url.toString();
     }
 
-    // 계약 생성
+    // 투자 등록
     @Override
     public ContractResponse createContract(ContractRequest contractRequest) {
-        Contract contract = new Contract();
-
         // user api에 user 정보 요청 (contractRequest.getUserId)
         Users userMock = UserMock.createMockUser();
 
         // startup api에 startup 정보 요청 (contractRequest.getStartupId)
         Startup startupMock = StartupMock.createMockStartup();
-        StartupDetails startupDetailsMock = StartupDetailsMock.createMockStartupDetails();
 
         // TODO: 스마트 컨트랙트 로직
 
-        // 계약정보 등록
+        // Contract 등록
+        Contract contract = new Contract();
         contract.setUserId(contractRequest.getUserId());
         contract.setStartupId(contractRequest.getStartupId());
-        contract.setStatus(ContractStatus.ACTIVE);
-
+        contract.setStatus(ContractStatus.BEGIN);
         contract = contractRepository.save(contract);
 
-        // 계약상세정보 등록 + 최종 PDF 생성
-        String s3Url = generatePdf(contractRequest);
+        // 최종 계약서 PDF 생성
+        ContractPdfRequest contractPdfRequest = ContractPdfRequest.builder()
+                        .userId(userMock.getUserId())
+                        .startupId(startupMock.getStartupId())
+                        .amount(contractRequest.getAmount())
+                        .transactionHash(contractRequest.getTransactionHash())
+                        .investorSignature(contractRequest.getInvestorSignature())
+                        .build();
+        String s3Url = generatePdf(contractPdfRequest);
 
-        ContractDetails contractDetails = getContractDetails(contractRequest, contract);
+        // ContractDetails 등록
+        ContractDetails contractDetails = generateCDs(contractRequest, contract);
         contractDetails.setImgUrl(s3Url);
-
         contractDetailsRepository.save(contractDetails);
 
-        // 임시 pdf 삭제 로직 : 이름이 tmp_로 시작하면 삭제
+        // 프리뷰 계약서 삭제 : S3 버킷에서 이름이 tmp_로 시작하는 파일을 삭제
         String bucketName = "contract-image";
-        deleteTemporaryPdfs(bucketName, userMock.getUserId().toString(), startupMock.getStartupId().toString());
+        deletePreviewPdf(bucketName, userMock.getUserId().toString(), startupMock.getStartupId().toString());
 
-        return new ContractResponse(s3Url); // 컨트랙트 주소, 해시값 포함된 새로운 pdf
+        return new ContractResponse(s3Url);
     }
 
     // 계약 상태에 따른 투자 리스트 조회
@@ -209,12 +187,12 @@ public class ContractServiceImpl implements ContractService{
                 continue; // contractDetails가 없는 경우 건너뜀
             }
 
-            // Mock 데이터 (나중에 실제 데이터로 변경 필요)
+            // startup api에 startup 정보 요청
             Startup startupMock = StartupMock.createMockStartup();
             StartupDetails startupDetailsMock = StartupDetailsMock.createMockStartupDetails();
 
+            // NULL일 가능성이 있는 필드 처리
             Double roi = (startupDetailsMock.getRoi() != null) ? startupDetailsMock.getRoi() : null;
-
             Double returnToken = (roi != null)
                     ? details.getTokenAmount() * (1 + roi / 100)
                     : null;
@@ -223,7 +201,6 @@ public class ContractServiceImpl implements ContractService{
             LocalDateTime contractDate = "active".equalsIgnoreCase(contractStatus)
                     ? details.getContractAt()
                     : contract.getSignedAt().plusMonths(startupDetailsMock.getContractPeriod());
-
             Double tokenAmount = "active".equalsIgnoreCase(contractStatus)
                     ? details.getTokenAmount()
                     : returnToken;
@@ -287,5 +264,34 @@ public class ContractServiceImpl implements ContractService{
                 startupMock.getLogoUrl(),
                 contractDetails.getImgUrl()
         );
+    }
+
+    // 투자 등록 시 ContractDetails 객체를 생성하는 메서드
+    private static ContractDetails generateCDs(ContractRequest contractRequest, Contract contract) {
+        ContractDetails contractDetails = new ContractDetails();
+
+        contractDetails.setContract(contract);
+        contractDetails.setTokenAmount(contractRequest.getAmount());
+        contractDetails.setImgUrl(null);
+        contractDetails.setContractAt(contractRequest.getContractAt());
+
+        return contractDetails;
+    }
+
+    // S3 버킷에서 프리뷰 계약서 PDF를 삭제하는 메서드
+    private void deletePreviewPdf(String bucketName, String userId, String startupId) {
+        String prefix = "contracts/tmp_" + userId + "_" + startupId; // tmp_로 시작하는 파일 패턴
+
+        // S3 버킷에서 객체 나열 및 삭제
+        ObjectListing objectListing = s3Client.listObjects(bucketName);
+        for (S3ObjectSummary objectSummary : objectListing.getObjectSummaries()) {
+            String key = objectSummary.getKey();
+
+            // 파일명이 prefix로 시작하면 삭제
+            if (key.startsWith(prefix)) {
+                System.out.println("Deleting: " + key);
+                s3Client.deleteObject(bucketName, key);
+            }
+        }
     }
 }
