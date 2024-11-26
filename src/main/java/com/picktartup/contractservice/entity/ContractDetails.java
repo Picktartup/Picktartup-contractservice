@@ -35,5 +35,5 @@ public class ContractDetails {
 
     // 거래 생성일
     @Column(nullable = false)
-    private LocalDateTime contract_at;
+    private LocalDateTime contractAt;
 }

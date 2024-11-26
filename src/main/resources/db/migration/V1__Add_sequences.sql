@@ -11,3 +11,10 @@ CREATE SEQUENCE IF NOT EXISTS details_seq
     MINVALUE 1
     NO MAXVALUE
     CACHE 1;
+
+CREATE SEQUENCE IF NOT EXISTS token_transfer_transactions_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    NO MAXVALUE
+    CACHE 1;
