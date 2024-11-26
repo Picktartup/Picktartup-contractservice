@@ -3,3 +3,27 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+server:
+  port: 8080
+  thymeleaf:
+    enabled: true
+    prefix: classpath:/templates/
+    suffix: .html
+    encoding: UTF-8
+
+# Binance Smart Chain (BSC) Network URL
+bsc:
+  network:
+    url: https://data-seed-prebsc-1-s1.binance.org:8545/
+
+wallet:
+  keystore:
+    directory: ${user.home}/keystore
+
+contract:
+  token:
+    address: ${CONTRACT_TOKEN_ADDRESS}
+  funding:
+    address: ${CONTRACT_FUNDING_ADDRESS}
+  admin:
+    private-key: ${CONTRACT_ADMIN_PRIVATEKEY}

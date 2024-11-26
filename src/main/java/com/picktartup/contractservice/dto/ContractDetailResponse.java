@@ -1,6 +1,5 @@
 package com.picktartup.contractservice.dto;
 
-
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,14 +12,25 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ContractDetailResponse {
-    private String startupName;
-    private String startupCategory;
-    private String startupDescription;
-    private String progressStatus; // contractStatus 상태에 따라 % 또는 취소, 완료
-    private Integer goalCoin;
-    private Integer currentCoin;
+
     private String contractStatus;
-    private Double investedTokenAmount; // 투자토큰
-    private LocalDateTime transactionCreatedAt; // 거래 생성일
-    private String contractAddress; // 계약주소
+    private LocalDateTime investAt;        // 투자 등록일
+    private LocalDateTime contractBeginAt; // 계약 체결일
+    private LocalDateTime contractEndAt;   // 계약 완료일
+    private Double investToken;  // 투자 토큰
+    private Double returnToken;  // 반환 토큰
+
+    private String startupName;
+    private Integer process;
+    private Double roi;
+
+    private String startupLogo;
+    private String startupDescription;
+    private String startupCategory;
+    private String investStatus;
+    private String investRound;
+    private Double expectedRoi;
+    private String logoUrl;
+    private String contractPdfUrl;
+
 }
