@@ -51,10 +51,10 @@ public class ContractServiceImpl implements ContractService{
     private static ContractDetails getContractDetails(ContractRequest contractRequest, Contract contract) {
         ContractDetails contractDetails = new ContractDetails();
         contractDetails.setContract(contract);
-        contractDetails.setContractAddress(contractRequest.getContractAddress());
         contractDetails.setTokenAmount(contractRequest.getAmount());
-        contractDetails.setImgUrl(contractRequest.getImgUrl());
-        contractDetails.setContract_at(contractRequest.getContractAt());
+        contractDetails.setImgUrl(null);
+        contractDetails.setContractAddress(contractRequest.getContractAddress());
+        contractDetails.setContractAt(contractRequest.getContractAt());
         return contractDetails;
     }
 
