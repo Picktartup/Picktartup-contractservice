@@ -35,6 +35,8 @@ import java.util.List;
 @Service
 public class ContractServiceImpl implements ContractService{
 
+    private final StartupFundingService startupFundingService;
+
     @Autowired
     private final ContractRepository contractRepository;
     @Autowired
@@ -130,22 +132,29 @@ public class ContractServiceImpl implements ContractService{
         // startup api에 startup 정보 요청 (contractRequest.getStartupId)
         Startup startupMock = StartupMock.createMockStartup();
 
-        // TODO: 스마트 컨트랙트 로직
+        // 스마트 컨트랙트 로직
+        Long campaignId = startupMock.getCampaignId();
+        CampaignDto.Investment.Request investRequest = CampaignDto.Investment.Request.builder()
+                        .userId(userMock.getUserId())
+                        .walletPassword(contractRequest.getWalletPassword())
+                        .amount(contractRequest.getAmount())
+                        .build();
+        CampaignDto.Investment.Response investResponse = startupFundingService.invest(campaignId, investRequest);
 
         // Contract 등록
         Contract contract = new Contract();
-        contract.setUserId(contractRequest.getUserId());
-        contract.setStartupId(contractRequest.getStartupId());
         contract.setStatus(ContractStatus.BEGIN);
+        contract.setStartupId(contractRequest.getStartupId());
+        contract.setUserId(contractRequest.getUserId());
         contract = contractRepository.save(contract);
 
         // 최종 계약서 PDF 생성
         ContractPdfRequest contractPdfRequest = ContractPdfRequest.builder()
-                        .userId(userMock.getUserId())
-                        .startupId(startupMock.getStartupId())
+                        .userId(contractRequest.getUserId())
+                        .startupId(contractRequest.getStartupId())
                         .amount(contractRequest.getAmount())
-                        .transactionHash(contractRequest.getTransactionHash())
                         .investorSignature(contractRequest.getInvestorSignature())
+                        .transactionHash(investResponse.getTransactionHash())
                         .build();
         String s3Url = generatePdf(contractPdfRequest);
 
@@ -261,7 +270,6 @@ public class ContractServiceImpl implements ContractService{
                 startupDetailsMock.getInvestmentStatus(),
                 startupDetailsMock.getInvestmentRound(),
                 startupDetailsMock.getExpectedRoi(),
-                startupMock.getLogoUrl(),
                 contractDetails.getImgUrl()
         );
     }
@@ -272,8 +280,7 @@ public class ContractServiceImpl implements ContractService{
 
         contractDetails.setContract(contract);
         contractDetails.setTokenAmount(contractRequest.getAmount());
-        contractDetails.setImgUrl(null);
-        contractDetails.setContractAt(contractRequest.getContractAt());
+        contractDetails.setContractAt(LocalDateTime.now());
 
         return contractDetails;
     }
