@@ -7,10 +7,12 @@ import com.picktartup.contractservice.entity.Users;
 import com.picktartup.contractservice.mock.UserMock;
 import com.picktartup.contractservice.service.ContractService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/api/v1/contracts")
@@ -27,6 +29,9 @@ public class ContractController {
     // 계약 생성
     @PostMapping("/transaction")
     public ApiResponse<ContractResponse> createContract(@RequestBody ContractRequest contractRequest) {
+        log.info("투자 요청 - startupId: {}, amount: {}, userId: {}",
+                contractRequest.getStartupId(), contractRequest.getAmount(), contractRequest.getUserId());
+
         return ApiResponse.ok(contractService.createContract(contractRequest));
     }
 
