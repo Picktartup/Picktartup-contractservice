@@ -30,6 +30,8 @@ public class StartupMock {
                 .currentCoin(200.0)
                 .fundingProgress(10)
                 .logoUrl("https://logo-resources.thevc.kr/organizations/200x200/e116f9f95794fd8c56dcf39b82836c36da4f8f41862543d32600cab91989d5ab_1646663882349973.jpg")
+                .industryType("테크테크 서비스입니다.")
+                .campaignId(5L)
                 .build();
     }
 }
