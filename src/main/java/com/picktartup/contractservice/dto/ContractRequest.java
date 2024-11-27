@@ -16,13 +16,9 @@ public class ContractRequest {
     private Long userId;
     private Long startupId;
 
-    private LocalDateTime contractAt;
-    private String contractAddress;
+    private String walletPassword;
     private Double amount;
 
     private String investorSignature;
-    private String startupSignature;
-
-    private String transactionHash;
 
 }

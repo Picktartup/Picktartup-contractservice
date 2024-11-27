@@ -27,7 +27,7 @@ public class CampaignDto {
             private String startupWallet;
 
             @Positive(message = "목표 금액은 0보다 커야 합니다")
-            private Long targetAmount;
+            private Double targetAmount;
 
             @NotNull(message = "관리자 ID는 필수입니다")
             private Long adminUserId;
@@ -49,7 +49,7 @@ public class CampaignDto {
             private String name;
             private String description;
             private String startupWallet;
-            private Long targetAmount;
+            private Double targetAmount;
             private LocalDateTime startTime;
             private LocalDateTime endTime;
             private String transactionHash;
@@ -97,7 +97,7 @@ public class CampaignDto {
             private String walletPassword;
 
             @Positive(message = "투자 금액은 0보다 커야 합니다")
-            private Long amount; //Picken 단위로 입력
+            private Double amount; //Picken 단위로 입력
 
             // Wei 단위로 변환하는 메서드
             public BigInteger getAmountInWei() {
@@ -110,8 +110,8 @@ public class CampaignDto {
         public static class Response {
             private Long campaignId;
             private String investorAddress;
-            private Long amount;
-            private Long totalRaised;
+            private Double amount;
+            private Double totalRaised;
             private String transactionHash;
             private LocalDateTime investedAt;  // 추가
         }
@@ -123,9 +123,9 @@ public class CampaignDto {
         public static class StatusResponse {
             private Long campaignId;
             private String investorAddress;
-            private Long investedAmount;
-            private Long campaignTotal;
-            private Long sharePercentage;
+            private Double investedAmount;
+            private Double campaignTotal;
+            private Double sharePercentage;
         }
     }
 
@@ -134,9 +134,9 @@ public class CampaignDto {
         @Builder
         public static class Response {
             private Long campaignId;
-            private Long targetAmount;
-            private Long currentBalance;
-            private Long remainingAmount;
+            private Double targetAmount;
+            private Double currentBalance;
+            private Double remainingAmount;
         }
     }
 
@@ -153,7 +153,7 @@ public class CampaignDto {
         public static class Response {
             private Long campaignId;
             private String investorAddress;
-            private Long amount;
+            private Double amount;
             private String transactionHash;
             private LocalDateTime refundedAt;
         }
@@ -176,7 +176,7 @@ public class CampaignDto {
         public static class Response {
             private Long campaignId;
             private String toAddress;
-            private Long amount;  // 추가: 출금 금액
+            private Double amount;  // 추가: 출금 금액
             private String transactionHash;
             private LocalDateTime withdrawnAt;  // 추가: 출금 시간
         }
