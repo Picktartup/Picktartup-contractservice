@@ -51,6 +51,14 @@ dependencies {
 
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
+    // Spring WebFlux
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+    // Resilience4j
+    implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.1.0'
+    implementation 'io.github.resilience4j:resilience4j-reactor:2.1.0'
+    implementation 'io.github.resilience4j:resilience4j-annotations:2.1.0'
+
     testImplementation 'org.powermock:powermock-module-junit4:2.0.9'
     testImplementation 'org.mockito:mockito-inline:4.0.0' // 최신 버전으로 업데이트
 }

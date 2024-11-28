@@ -3,3 +3,9 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
+service:
+  user:
+    url: http://192.168.0.143:32450/user
+  startup:
+    url: http://192.168.0.143:32450/startup
