@@ -51,4 +51,7 @@ public class StartupDetails {
 
     private Double roi;
 
+    @Column(length = 100, nullable = false)
+    private String signature;
+
 }

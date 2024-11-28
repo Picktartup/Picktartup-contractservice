@@ -30,9 +30,6 @@ public class ContractDetails {
     @Column(nullable = false)
     private String imgUrl;
 
-    @Column(nullable = false)
-    private String contractAddress;
-
     // 거래 생성일
     @Column(nullable = false)
     private LocalDateTime contractAt;

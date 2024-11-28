@@ -5,15 +5,14 @@ VALUES (1, 1, 'ACTIVE', NULL),
 
 
 INSERT INTO contractdetails (contract_id,
-                             contract_address,
                              token_amount,
                              img_url,
                              contract_at)
-VALUES (1, '0x742d35Cc6634C0532925a3b844Bc454e4438f44e', 5.5,
+VALUES (1, 5.5,
         'https://example.com/images/contract1.jpg', '2024-01-02 10:00:00'),
-       (2, '0x9c4d7fCc6835C0532925a3b844Bc454e4438f47f', 10.0,
+       (2, 10.5,
         'https://example.com/images/contract2.jpg', '2024-01-16 14:30:00'),
-       (3, '0x7a2d4fCc7834D0532925a3b844Bc454e4438f99e', 7.25,
+       (3, 7.25,
         'https://example.com/images/contract3.jpg', '2024-02-11 09:20:00');
 
 

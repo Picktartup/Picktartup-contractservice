@@ -8,7 +8,7 @@ import java.util.List;
 
 public interface ContractService {
 
-    String generatePdf(ContractRequest contractRequest);
+    String generatePdf(ContractPdfRequest contractPdfRequest);
     ContractResponse createContract(ContractRequest contractRequest);
     List<ContractListResponse> getContractList(Long userId, String contractStatus);
     ContractDetailResponse getContractDetail(Long contractId);
