@@ -24,17 +24,16 @@ public class WebClientConfig {
     @Value("${service.startup.url}")
     private String startupServiceUrl;
 
+    @Value("${service.wallet.url}")
+    private String walletServiceUrl; // Wallet 서비스 URL 추가
+
     @Bean
     public WebClient userServiceWebClient() {
         return WebClient.builder()
                 .baseUrl(userServiceUrl)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .filter(ExchangeFilterFunction.ofRequestProcessor(
-                        clientRequest -> {
-                            log.debug("Request: {} {}", clientRequest.method(), clientRequest.url());
-                            return Mono.just(clientRequest);
-                        }
-                ))
+                .filter(loggingFilter())
+                .filter(errorHandler())
                 .build();
     }
 
@@ -43,13 +42,26 @@ public class WebClientConfig {
         return WebClient.builder()
                 .baseUrl(startupServiceUrl)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .filter(ExchangeFilterFunction.ofRequestProcessor(
-                        clientRequest -> {
-                            log.debug("Request: {} {}", clientRequest.method(), clientRequest.url());
-                            return Mono.just(clientRequest);
-                        }
-                ))
+                .filter(loggingFilter())
+                .filter(errorHandler())
                 .build();
+    }
+
+    @Bean
+    public WebClient walletServiceWebClient() { // Wallet WebClient 추가
+        return WebClient.builder()
+                .baseUrl(walletServiceUrl)
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .filter(loggingFilter())
+                .filter(errorHandler())
+                .build();
+    }
+
+    private ExchangeFilterFunction loggingFilter() {
+        return ExchangeFilterFunction.ofRequestProcessor(clientRequest -> {
+            log.debug("Request: {} {}", clientRequest.method(), clientRequest.url());
+            return Mono.just(clientRequest);
+        });
     }
 
     private ExchangeFilterFunction errorHandler() {

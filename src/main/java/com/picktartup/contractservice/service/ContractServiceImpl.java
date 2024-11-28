@@ -9,8 +9,6 @@ import com.picktartup.contractservice.dto.*;
 import com.picktartup.contractservice.entity.*;
 import com.picktartup.contractservice.exception.BusinessException;
 import com.picktartup.contractservice.exception.ErrorCode;
-import com.picktartup.contractservice.mock.StartupDetailsMock;
-import com.picktartup.contractservice.mock.StartupMock;
 import com.picktartup.contractservice.repository.ContractDetailsRepository;
 import com.picktartup.contractservice.repository.ContractRepository;
 import com.picktartup.contractservice.webclient.StartupServiceClient;
@@ -55,13 +53,13 @@ public class ContractServiceImpl implements ContractService{
     @Override
     public String generatePdf(ContractPdfRequest contractPdfRequest) {
         // User 정보 조회
-        UserResponse.UserInfo userInfo = userServiceClient.getUserInfo(contractPdfRequest.getUserId()).block();
+        UserDto.UserInfo userInfo = userServiceClient.getUserInfo(contractPdfRequest.getUserId()).block();
 
         // Startup 정보 조회
         StartupResponse startupInfo = startupServiceClient.getStartupInfo(contractPdfRequest.getStartupId()).block();
 
         // CEO 지갑 정보 조회
-        UserResponse.UserInfo ceoInfo = userServiceClient.getUserInfo(startupInfo.getCeoUserId()).block();
+        UserDto.UserInfo ceoInfo = userServiceClient.getUserInfo(startupInfo.getCeoUserId()).block();
 
         // 프리뷰 계약서 처리 (트랜잭션 해시, 투자자 서명)
         String transactionHash = (contractPdfRequest.getTransactionHash() != null)
