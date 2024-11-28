@@ -1,4 +1,8 @@
-CREATE TABLE contract
+DROP TABLE IF EXISTS public.contract;
+DROP TABLE IF EXISTS public.contractdetails;
+DROP TABLE IF EXISTS public.tokentransfertransaction;
+
+CREATE TABLE public.contract
 (
     contract_id int8         NOT NULL DEFAULT nextval('contract_seq'),
     status      varchar(255) NOT NULL,
@@ -11,7 +15,7 @@ CREATE TABLE contract
     )
 );
 
-CREATE TABLE contractdetails
+CREATE TABLE public.contractdetails
 (
     details_id         int8         NOT NULL DEFAULT nextval('details_seq'),
     contract_id        int8         NOT NULL,
@@ -24,7 +28,7 @@ CREATE TABLE contractdetails
         REFERENCES contract (contract_id)
 );
 
-CREATE TABLE tokentransfertransaction (
+CREATE TABLE public.tokentransfertransaction (
     id BIGINT PRIMARY KEY DEFAULT nextval('token_transfer_transactions_seq'), -- 거래 ID
     user_id BIGINT NOT NULL,                    -- 사용자 ID
     campaign_id BIGINT NOT NULL,                -- 캠페인 ID

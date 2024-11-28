@@ -1,4 +1,4 @@
-INSERT INTO contract (user_id, startup_id, status, signed_at)
+INSERT INTO public.contract (user_id, startup_id, status, signed_at)
 VALUES (1, 1, 'ACTIVE', NULL),
        (1, 2, 'ACTIVE', NULL),
        (2, 1, 'COMPLETED', NULL);
@@ -16,7 +16,7 @@ VALUES (1, 5.5,
         'https://example.com/images/contract3.jpg', '2024-02-11 09:20:00');
 
 
-INSERT INTO tokentransfertransaction
+INSERT INTO public.tokentransfertransaction
     (user_id, campaign_id, wallet_address, token_amount, transaction_hash, status, type, completed_at, failure_reason, created_at)
 VALUES
     (2, 5, '0x823e970ace029c933e7962b2ae3f888a48886825', 40.00, NULL, 'FAILED', 'INVESTMENT', NULL,
