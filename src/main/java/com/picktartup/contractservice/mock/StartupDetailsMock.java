@@ -21,6 +21,7 @@ public class StartupDetailsMock {
                 .establishmentDate("2020.10.1")
                 .expectedRoi(150.0)
                 .roi(null)
+                .signature("https://contract-image.s3.ap-northeast-2.amazonaws.com/signature/dummyStartup.png")
                 .build();
     }
 }

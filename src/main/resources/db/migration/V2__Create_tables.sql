@@ -20,7 +20,6 @@ CREATE TABLE public.contractdetails
     details_id         int8         NOT NULL DEFAULT nextval('details_seq'),
     contract_id        int8         NOT NULL,
     token_amount       float8       NOT NULL,
-    contract_address   varchar(255) NOT NULL,
     img_url            varchar(255) NOT NULL,
     contract_at        timestamp(6) NOT NULL,
     CONSTRAINT contractdetails_contract_id_key UNIQUE (contract_id),
