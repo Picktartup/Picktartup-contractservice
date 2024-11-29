@@ -28,3 +28,27 @@ spring:
         enabled: true    # Liveness 상태를 활성화
       readinessstate:
         enabled: true    # Readiness 상태를 활성화
+
+server:
+  thymeleaf:
+    enabled: true
+    prefix: classpath:/templates/
+    suffix: .html
+    encoding: UTF-8
+
+# Binance Smart Chain (BSC) Network URL
+bsc:
+  network:
+    url: ${BSC_NETWORK_URL}
+
+#wallet:
+#  keystore:
+#    directory: ${user.home}/keystore
+
+contract:
+  token:
+    address: ${CONTRACT_TOKEN_ADDRESS}
+  funding:
+    address: ${CONTRACT_FUNDING_ADDRESS}
+  admin:
+    private-key: ${CONTRACT_ADMIN_PRIVATEKEY}
