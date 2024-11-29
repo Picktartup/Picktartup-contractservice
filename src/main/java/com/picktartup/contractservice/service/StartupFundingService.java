@@ -178,7 +178,7 @@ public class StartupFundingService {
             StartupFunding.InvestmentMadeEventResponse event = events.get(0);
 
             // Wei -> PICKEN 변환하여 로깅 및 응답
-            Long totalRaisedPICKEN = TokenUtils.fromWei(event.totalRaised);
+            Double totalRaisedPICKEN = TokenUtils.fromWei(event.totalRaised);
 
             // 트랜잭션 완료 처리
             updateTransactionSuccess(savedTransaction, receipt.getTransactionHash());
@@ -227,7 +227,7 @@ public class StartupFundingService {
     }
 
     // 투자자 지갑 잔액 업데이트
-    private void updateInvestorWalletBalance(Wallet wallet, Long investmentAmount) {
+    private void updateInvestorWalletBalance(Wallet wallet, Double investmentAmount) {
         wallet.setBalance(wallet.getBalance().subtract(BigDecimal.valueOf(investmentAmount)));
 
         //msa 통합 테스트 시 추가
@@ -292,7 +292,7 @@ public class StartupFundingService {
             return CampaignDto.Refund.Response.builder()
                     .campaignId(campaignId)
                     .investorAddress(investorWallet.getAddress())
-                    .amount(event.amount.longValue())
+                    .amount(event.amount.doubleValue())
                     .transactionHash(receipt.getTransactionHash())
                     .build();
 
@@ -341,9 +341,9 @@ public class StartupFundingService {
 
             return CampaignDto.Detail.Response.builder()
                     .campaignId(campaignId)
-                    .targetAmount(balance.component1().longValue())
-                    .currentBalance(balance.component2().longValue())
-                    .remainingAmount(balance.component3().longValue())
+                    .targetAmount(balance.component1().doubleValue())
+                    .currentBalance(balance.component2().doubleValue())
+                    .remainingAmount(balance.component3().doubleValue())
                     .build();
 
         } catch (Exception e) {
@@ -376,9 +376,9 @@ public class StartupFundingService {
             return CampaignDto.Investor.StatusResponse.builder()
                     .campaignId(campaignId)
                     .investorAddress(investorWallet.getAddress())
-                    .investedAmount(status.component1().longValue())
-                    .campaignTotal(status.component2().longValue())
-                    .sharePercentage(status.component3().longValue())
+                    .investedAmount(status.component1().doubleValue())
+                    .campaignTotal(status.component2().doubleValue())
+                    .sharePercentage(status.component3().doubleValue())
                     .build();
 
         } catch (Exception e) {

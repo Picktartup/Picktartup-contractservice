@@ -50,6 +50,12 @@ public class Startup {
     @Column(name = "logo_url", length = 100, nullable = false)
     private String logoUrl;
 
+    @Column(name = "industry_type", length = 100, nullable = false)
+    private String industryType;
+
+    @Column(name = "campaign_id")
+    private Long campaignId;
+
     @OneToMany(mappedBy = "startup", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Contract> contracts;
 }

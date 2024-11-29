@@ -30,7 +30,6 @@ public class ContractDetailResponse {
     private String investStatus;
     private String investRound;
     private Double expectedRoi;
-    private String logoUrl;
     private String contractPdfUrl;
 
 }

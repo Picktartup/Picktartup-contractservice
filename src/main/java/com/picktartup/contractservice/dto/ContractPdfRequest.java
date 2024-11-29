@@ -1,9 +1,6 @@
 package com.picktartup.contractservice.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -11,14 +8,14 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class ContractRequest {
+@Builder
+public class ContractPdfRequest {
 
     private Long userId;
     private Long startupId;
 
-    private String walletPassword;
     private Double amount;
-
+    private String transactionHash;
     private String investorSignature;
 
 }

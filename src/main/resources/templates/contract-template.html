@@ -73,12 +73,12 @@
         }
         .label {
             display: inline-block;
-            width: 150px;  /* 컬럼명의 고정 너비 설정 */
+            width: 150px; /* 컬럼명의 고정 너비 설정 */
             text-align: left;
         }
         .value {
             display: inline-block;
-            margin-left: 20px;  /* 값과 라벨 사이 간격 */
+            margin-left: 20px; /* 값과 라벨 사이 간격 */
         }
         .info-sign {
             font-size: 12px;
@@ -87,14 +87,19 @@
         }
         .info-sign p {
             display: flex;
+            justify-content: space-between; /* 양쪽 정렬 */
             align-items: center;
-            white-space: nowrap; /* 줄바꿈 방지 */
-            margin-left: 100px; /* 컬럼명을 오른쪽으로 밀기 */
+            margin: 5px 0; /* 간격 설정 */
         }
         .info-sign p span {
-            flex: 1;
-            text-align: right;
-            padding-left: 20px; /* : 기호 오른쪽 간격 */
+            text-align: right; /* 오른쪽 정렬 */
+        }
+        .info-sign p img {
+            width: 50px; /* 고정 너비 */
+            height: 50px; /* 고정 높이 */
+            object-fit: cover; /* 이미지 비율 유지 */
+            margin-left: auto; /* 오른쪽 정렬 */
+            display: block; /* 블록 요소로 변경 */
         }
         ol {
             margin: 0;
@@ -255,9 +260,24 @@
             </div><br>
             <div class="info-sign">
                 <p>(투자자) 지갑 주소 : <span th:text="${investorWallet}"></span></p>
+                <p>
+                    (투자자) 서명란:
+                    <img th:src="${investorSignatureUrl}" alt="투자자 서명">
+                </p>
+
                 <p>(회사) 지갑 주소 : <span th:text="${companyWallet}"></span></p>
-                <p>스마트 컨트랙트 주소 : <span th:text="${smartContractAddress}"></span></p>
+                <p>
+                    (회사) 서명란:
+                    <img th:src="${companySignatureUrl}" alt="회사 서명">
+                </p>
+
                 <p>TxHash : <span th:text="${transactionHash}"></span></p>
+                <br>
+
+                <p>
+                    (픽타트업) 서명란:
+                    <img src="https://contract-image.s3.ap-northeast-2.amazonaws.com/signature/picktartup.png" alt="픽타트업 서명">
+                </p>
             </div>
         </div>
     </div>
