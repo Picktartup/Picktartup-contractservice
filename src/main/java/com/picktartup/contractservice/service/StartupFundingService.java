@@ -98,6 +98,7 @@ public class StartupFundingService {
                     .campaignId(event.campaignId.longValue())
                     .name(request.getName())
                     .description(request.getDescription())
+                    .startupWallet(request.getStartupWallet())
                     .targetAmount(request.getTargetAmount())  // 원래 PICKEN 단위 유지
                     .startTime(Instant.ofEpochSecond(event.startTime.longValue())
                             .atZone(ZoneId.systemDefault())
