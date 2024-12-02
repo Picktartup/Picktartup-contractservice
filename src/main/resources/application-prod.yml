@@ -43,7 +43,7 @@ bsc:
 
 wallet:
   keystore:
-    directory: ${user.home}/keystore
+    directory: /app/keystore
 
 contract:
   token:
