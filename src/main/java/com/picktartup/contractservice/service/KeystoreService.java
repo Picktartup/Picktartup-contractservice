@@ -5,6 +5,7 @@ import com.picktartup.contractservice.exception.BusinessException;
 import com.picktartup.contractservice.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.web3j.crypto.Credentials;
 import org.web3j.crypto.Wallet;
@@ -18,6 +19,9 @@ import java.io.IOException;
 @RequiredArgsConstructor
 @Slf4j
 public class KeystoreService {
+
+    @Value("${wallet.keystore.directory}")
+    private String keystoreDirectory;
 
     private final ObjectMapper objectMapper;
 
@@ -52,8 +56,7 @@ public class KeystoreService {
 
     // Private helper methods
     private File resolveKeystoreFile(String keystoreFileName) {
-        String homeDir = System.getProperty("user.home");
-        File keystoreDir = new File(homeDir, "keystore");
+        File keystoreDir = new File(keystoreDirectory);
         File keystoreFile = new File(keystoreDir, keystoreFileName);
         log.debug("Keystore 파일 경로: {}", keystoreFile.getAbsolutePath());
         return keystoreFile;
