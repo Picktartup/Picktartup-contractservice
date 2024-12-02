@@ -1,17 +1,14 @@
 package com.picktartup.contractservice.dto;
 
 import com.picktartup.contractservice.entity.ContractStatus;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Getter
-@Setter
+@Builder
 @AllArgsConstructor
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ContractListResponse {
 
     private Long contractId;

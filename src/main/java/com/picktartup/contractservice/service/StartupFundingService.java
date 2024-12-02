@@ -2,8 +2,7 @@ package com.picktartup.contractservice.service;
 
 import com.picktartup.contractservice.contracts.PickenToken;
 import com.picktartup.contractservice.contracts.StartupFunding;
-import com.picktartup.contractservice.dto.CampaignDto;
-import com.picktartup.contractservice.dto.TokenDto;
+import com.picktartup.contractservice.dto.*;
 import com.picktartup.contractservice.entity.TokenTransferTransaction;
 import com.picktartup.contractservice.entity.TransactionStatus;
 import com.picktartup.contractservice.entity.TransactionType;
@@ -13,6 +12,9 @@ import com.picktartup.contractservice.exception.ErrorCode;
 import com.picktartup.contractservice.mock.WalletMock;
 import com.picktartup.contractservice.repository.TokenTransferTransactionRepository;
 import com.picktartup.contractservice.utils.TokenUtils;
+import com.picktartup.contractservice.webclient.StartupServiceClient;
+import com.picktartup.contractservice.webclient.UserServiceClient;
+import com.picktartup.contractservice.webclient.WalletServiceClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -45,19 +47,16 @@ public class StartupFundingService {
     private final String fundingContractAddress;
     private final String tokenContractAddress;
     private final KeystoreService keystoreService;
+    private final MailService mailService;
     private final ContractGasProvider gasProvider;
     private final TokenTransferTransactionRepository tokenTransferTransactionRepository;
-
-    Wallet walletMock = WalletMock.createWalletMock();
+    private final StartupServiceClient startupServiceClient;
+    private final UserServiceClient userServiceClient;
+    private final WalletServiceClient walletServiceClient;
 
     // Campaign 생성
     @Transactional
     public CampaignDto.Create.Response createCampaign(CampaignDto.Create.Request request) {
-        log.info("캠페인 생성 시작 - name: {}, targetAmount: {} PICKEN",
-                request.getName(), request.getTargetAmount());
-
-        validateAdminAccess(request.getAdminUserId());
-
         try {
             StartupFunding contract = loadFundingContract(adminCredentials);
 
@@ -68,7 +67,7 @@ public class StartupFundingService {
             long durationInSeconds = request.getDurationInDays() * 24 * 60 * 60;
 
             // 컨트랙트 호출 전 로깅
-            log.debug("컨트랙트 호출 파라미터 - targetAmount: {} Wei, duration: {} seconds",
+            log.debug("컨트랙트 호출 파     라미터 - targetAmount: {} Wei, duration: {} seconds",
                     targetAmountInWei, durationInSeconds);
 
             TransactionReceipt receipt = contract.createCampaign(
@@ -119,8 +118,7 @@ public class StartupFundingService {
     @Transactional
     public CampaignDto.Investment.Response invest(
             Long campaignId,
-            CampaignDto.Investment.Request request
-    ) {
+            CampaignDto.Investment.Request request) {
         log.info("투자 시작 - userId: {}, campaignId: {}, amount: {} PICKEN",
                 request.getUserId(), campaignId, request.getAmount());
 
@@ -128,7 +126,8 @@ public class StartupFundingService {
         CampaignDto.Status.Response campaignStatus = getCampaignStatus(campaignId);
         validateCampaignStatus(campaignStatus);
 
-        Wallet investorWallet = findAndValidateInvestorWallet(request.getUserId());
+
+        WalletDto.WalletInfo investorWallet = findAndValidateInvestorWallet(request.getUserId());
         Credentials investorCredentials = loadInvestorCredentials(
                 investorWallet,
                 request.getWalletPassword()
@@ -184,8 +183,23 @@ public class StartupFundingService {
             // 트랜잭션 완료 처리
             updateTransactionSuccess(savedTransaction, receipt.getTransactionHash());
 
-            // 투자자 지갑 잔액 업데이트
-            updateInvestorWalletBalance(investorWallet, request.getAmount());
+            // 스타트업 정보 조회
+            StartupResponse startupInfo = startupServiceClient.getStartupInfo(campaignId)
+                    .blockOptional()
+                    .orElseThrow(() -> new BusinessException(ErrorCode.STARTUP_NOT_FOUND));
+
+            // CEO 정보 조회
+            UserDto.ValidationResponse ceoInfo = userServiceClient.validateUserExists(startupInfo.getCeoUserId());
+
+            // 투자 알림 이메일 발송
+            sendInvestmentNotification(
+                    ceoInfo.getEmail(),
+                    request.getAmount(),
+                    investorWallet.getAddress(),
+                    campaignId,
+                    totalRaisedPICKEN
+            );
+
 
             log.info("투자 완료 - userId: {}, campaignId: {}, amount: {} PICKEN, totalRaised: {} PICKEN, txHash: {}",
                     request.getUserId(),
@@ -227,15 +241,6 @@ public class StartupFundingService {
         tokenTransferTransactionRepository.save(transaction);
     }
 
-    // 투자자 지갑 잔액 업데이트
-    private void updateInvestorWalletBalance(Wallet wallet, Double investmentAmount) {
-        wallet.setBalance(wallet.getBalance().subtract(BigDecimal.valueOf(investmentAmount)));
-
-        //msa 통합 테스트 시 추가
-//        walletRepository.save(wallet);
-    }
-
-
     // 캠페인 상태 조회
     public CampaignDto.Status.Response getCampaignStatus(Long campaignId) {
         try {
@@ -267,7 +272,7 @@ public class StartupFundingService {
     public CampaignDto.Refund.Response refund(Long campaignId, Long userId) {
         log.info("환불 시작 - userId: {}, campaignId: {}", userId, campaignId);
 
-        Wallet investorWallet = findAndValidateInvestorWallet(userId);
+        WalletDto.WalletInfo investorWallet = findAndValidateInvestorWallet(userId);
 
         try {
             StartupFunding contract = loadFundingContract(
@@ -360,7 +365,7 @@ public class StartupFundingService {
     public CampaignDto.Investor.StatusResponse getInvestorStatus(Long campaignId, Long userId) {
         log.info("투자자 상태 조회 시작 - campaignId: {}, userId: {}", campaignId, userId);
 
-        Wallet investorWallet = findAndValidateInvestorWallet(userId);
+        WalletDto.WalletInfo investorWallet = findAndValidateInvestorWallet(userId);
 
         try {
             StartupFunding contract = loadFundingContract(createReadOnlyCredentials());
@@ -429,8 +434,6 @@ public class StartupFundingService {
         log.info("긴급 출금 시작 - campaignId: {}, adminUserId: {}",
                 campaignId, request.getAdminUserId());
 
-        validateAdminAccess(request.getAdminUserId());
-
         try {
             StartupFunding contract = loadFundingContract(adminCredentials);
 
@@ -468,13 +471,13 @@ public class StartupFundingService {
         );
     }
 
-    private Wallet findAndValidateInvestorWallet(Long userId) {
-        return walletMock;
-        //return walletRepository.findByUserId(userId)
-        //        .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
+    private WalletDto.WalletInfo findAndValidateInvestorWallet(Long userId) {
+        return walletServiceClient.getWalletInfo(userId)
+                .blockOptional()
+                .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));
     }
 
-    private Credentials loadInvestorCredentials(Wallet wallet, String password) {
+    private Credentials loadInvestorCredentials(WalletDto.WalletInfo wallet, String password) {
         try {
             WalletFile walletFile = keystoreService.getWalletFile(wallet.getKeystoreFilename());
             String privateKey = keystoreService.decryptPrivateKey(walletFile, password);
@@ -518,24 +521,6 @@ public class StartupFundingService {
 
     private Credentials createReadOnlyCredentials() {
         return Credentials.create("0x0");
-    }
-
-    private void validateAdminAccess(Long adminUserId) {
-//        Wallet adminWallet = walletRepository.findByUserId(adminUserId)
-//                .orElseThrow(() -> new BusinessException(ErrorCode.ADMIN_NOT_FOUND));
-//
-//
-//        if (!isAdmin(adminUserId)) {
-//            throw new BusinessException(
-//                    ErrorCode.UNAUTHORIZED_ACCESS,
-//                    "관리자 권한이 없습니다."
-//            );
-//        }
-    }
-
-    private boolean isAdmin(Long userId) {
-        // TODO: 실제 관리자 권한 확인 로직 구현 필요
-        return true;
     }
 
     private boolean checkAndApproveTokens(Credentials credentials, BigInteger amount) {
@@ -637,4 +622,69 @@ public class StartupFundingService {
                 gasProvider
         );
     }
+
+    public void sendInvestmentNotification(
+            String toEmail,
+            Double amount,
+            String investorAddress,
+            Long campaignId,
+            Double totalRaised
+    ) {
+        String title = "[PICKTARTUP] 신규 투자 알림 - ";
+
+        StringBuilder emailContent = new StringBuilder();
+        emailContent.append("<!DOCTYPE html>")
+                .append("<html><body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>")
+                .append("<div style='max-width: 600px; margin: 0 auto; padding: 20px;'>")
+
+                // 로고 및 헤더
+                .append("<div style='text-align: center; margin-bottom: 30px;'>")
+                .append("<h1 style='color: #2C3E50;'>PICKTARTUP</h1>")
+                .append("<h2 style='color: #34495E;'>신규 투자 알림</h2>")
+                .append("</div>")
+
+                // 인사말
+                .append("<p>안녕하세요,<br>")
+                .append("귀사의 프로젝트에 새로운 투자가 완료되어 안내드립니다.</p>")
+
+                // 투자 정보 섹션
+                .append("<div style='background-color: #F8F9FA; padding: 20px; border-radius: 5px; margin: 20px 0;'>")
+                .append("<h3 style='color: #2C3E50; margin-top: 0;'>📊 투자 상세 정보</h3>")
+                .append("<table style='width: 100%; border-collapse: collapse;'>")
+                .append(String.format("<tr><td style='padding: 8px 0;'><strong>캠페인 ID:</strong></td><td>%d</td></tr>", campaignId))
+                .append(String.format("<tr><td style='padding: 8px 0;'><strong>신규 투자 금액:</strong></td><td><span style='color: #27AE60;'>%.2f PICKEN</span></td></tr>", amount))
+                .append(String.format("<tr><td style='padding: 8px 0;'><strong>투자자 주소:</strong></td><td><code style='background-color: #E8E8E8; padding: 2px 4px; border-radius: 3px;'>%s</code></td></tr>", investorAddress))
+                .append("</table>")
+                .append("</div>")
+
+                // 펀딩 현황 섹션
+                .append("<div style='background-color: #F8F9FA; padding: 20px; border-radius: 5px; margin: 20px 0;'>")
+                .append("<h3 style='color: #2C3E50; margin-top: 0;'>🎯 펀딩 현황</h3>")
+                .append("<table style='width: 100%; border-collapse: collapse;'>")
+                .append(String.format("<tr><td style='padding: 8px 0;'><strong>총 모집액:</strong></td><td>%.2f PICKEN</td></tr>", totalRaised))
+                .append("</table>")
+                .append("</div>")
+
+                // 안내사항
+                .append("<div style='margin: 20px 0;'>")
+                .append("<h3 style='color: #2C3E50;'>💡 안내사항</h3>")
+                .append("<ul style='padding-left: 20px;'>")
+                .append("<li>상세한 투자 내역은 PICKTARTUP 대시보드에서 확인하실 수 있습니다.</li>")
+                .append("<li>투자자와의 소통은 플랫폼 내 메시지 기능을 이용해 주시기 바랍니다.</li>")
+                .append("<li>추가 문의사항이 있으시면 고객센터로 연락 부탁드립니다.</li>")
+                .append("</ul>")
+                .append("</div>")
+
+                // 푸터
+                .append("<div style='margin-top: 40px; padding-top: 20px; border-top: 1px solid #E8E8E8; text-align: center; font-size: 0.9em; color: #666;'>")
+                .append("<p>본 메일은 발신 전용입니다. 문의사항은 고객센터를 이용해 주시기 바랍니다.<br>")
+                .append("© 2024 YageumYageum. All rights reserved.</p>")
+                .append("</div>")
+
+                .append("</div>")
+                .append("</body></html>");
+
+        mailService.sendEmail(toEmail, title, emailContent.toString()); // HTML 이메일 발송
+    }
+
 }

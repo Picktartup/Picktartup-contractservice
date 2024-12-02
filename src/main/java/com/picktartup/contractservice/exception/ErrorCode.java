@@ -23,6 +23,8 @@ public enum ErrorCode {
     INSUFFICIENT_TOKEN_BALANCE(HttpStatus.BAD_REQUEST, "I002", "토큰 잔액이 부족합니다."),
     TOKEN_APPROVAL_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "I003", "토큰 승인에 실패했습니다."),
     INVESTOR_STATUS_FETCH_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "I004", "투자자 상태 조회에 실패했습니다."),
+    INVALID_CONTRACT_STATUS(HttpStatus.BAD_REQUEST, "I005", "유효하지 않은 계약 상태입니다."),
+    CONTRACT_NOT_FOUND(HttpStatus.NOT_FOUND, "I006", "계약 정보를 찾을 수 없습니다."),
 
     // Refund
     REFUND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "R001", "환불 처리에 실패했습니다."),
@@ -58,6 +60,19 @@ public enum ErrorCode {
     BALANCE_UPDATE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "W004", "잔고 업데이트에 실패했습니다."),
     INVALID_WALLET_STATUS(HttpStatus.BAD_REQUEST, "W005", "유효하지 않은 지갑 상태입니다."),
     INVALID_WALLET_PASSWORD(HttpStatus.BAD_REQUEST, "W006", "잘못된 지갑 비밀번호입니다."),
+    WALLET_SERVICE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "W007", "지갑 서비스와 통신 중 오류가 발생했습니다."),
+
+    //Startup
+    STARTUP_NOT_FOUND(HttpStatus.NOT_FOUND, "S001", "스타트업 정보를 찾을 수 없습니다."),
+    STARTUP_SERVICE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "S002", "스타트업 서비스 오류가 발생했습니다."),
+    STARTUP_DETAILS_NOT_FOUND(HttpStatus.NOT_FOUND, "S003", "스타트업 상세 정보를 찾을 수 없습니다."),
+
+    //User
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "U001", "사용자를 찾을 수 없습니다."),
+    USER_SERVICE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "U002", "사용자 서비스 오류가 발생했습니다."),
+    USER_NOT_ACTIVE(HttpStatus.BAD_REQUEST, "U003", "비활성화된 사용자입니다."),
+
+    UNABLE_TO_SEND_EMAIL(HttpStatus.INTERNAL_SERVER_ERROR, "EMAIL-001", "이메일 발송에 실패했습니다."),
 
     // 시스템 관련 에러
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "S001", "내부 서버 오류가 발생했습니다."),

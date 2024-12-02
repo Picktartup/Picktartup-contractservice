@@ -7,14 +7,14 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.itextpdf.html2pdf.HtmlConverter;
 import com.picktartup.contractservice.dto.*;
 import com.picktartup.contractservice.entity.*;
-import com.picktartup.contractservice.mock.StartupDetailsMock;
-import com.picktartup.contractservice.mock.StartupMock;
-import com.picktartup.contractservice.mock.UserMock;
-import com.picktartup.contractservice.mock.WalletMock;
+import com.picktartup.contractservice.exception.BusinessException;
+import com.picktartup.contractservice.exception.ErrorCode;
 import com.picktartup.contractservice.repository.ContractDetailsRepository;
 import com.picktartup.contractservice.repository.ContractRepository;
+import com.picktartup.contractservice.webclient.StartupServiceClient;
+import com.picktartup.contractservice.webclient.UserServiceClient;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.thymeleaf.TemplateEngine;
@@ -31,20 +31,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+@Slf4j
 @RequiredArgsConstructor
 @Service
 public class ContractServiceImpl implements ContractService{
 
     private final StartupFundingService startupFundingService;
-
-    @Autowired
+    private final UserServiceClient userServiceClient;
+    private final StartupServiceClient startupServiceClient;
     private final ContractRepository contractRepository;
-    @Autowired
     private final ContractDetailsRepository contractDetailsRepository;
-    @Autowired
-    private TemplateEngine templateEngine;
-    @Autowired
-    private AmazonS3 s3Client;
+    private final TemplateEngine templateEngine;
+    private final AmazonS3 s3Client;
 
     // TODO: 모금 완료되어 계약 최종 체결 시
     // 1) contract.signedAt 컬럼 업데이트 -> now()
@@ -53,41 +51,40 @@ public class ContractServiceImpl implements ContractService{
 
     // 계약서 PDF 생성
     @Override
-    public String generatePdf(ContractPdfRequest contractpdfRequest) {
-        // user api에 user 정보 요청 (contractRequest.getUserId)
-        Users userMock = UserMock.createMockUser();
-        Wallet walletMock = WalletMock.createWalletMock();
+    public String generatePdf(ContractPdfRequest contractPdfRequest) {
+        // User 정보 조회
+        UserDto.UserInfo userInfo = userServiceClient.getUserInfo(contractPdfRequest.getUserId()).block();
 
-        // startup api에 startup 정보 요청 (contractRequest.getStartupId)
-        Startup startupMock = StartupMock.createMockStartup();
-        StartupDetails startupDetailsMock = StartupDetailsMock.createMockStartupDetails();
+        // Startup 정보 조회
+        StartupResponse startupInfo = startupServiceClient.getStartupInfo(contractPdfRequest.getStartupId()).block();
 
-        // (프리뷰 계약서일 경우) 트랜잭션 해시, 투자자 서명 필드를 기본 텍스트/이미지로 처리
-        String transactionHash = (contractpdfRequest.getTransactionHash() != null)
-                ? contractpdfRequest.getTransactionHash()
+        // CEO 지갑 정보 조회
+        UserDto.UserInfo ceoInfo = userServiceClient.getUserInfo(startupInfo.getCeoUserId()).block();
+
+        // 프리뷰 계약서 처리 (트랜잭션 해시, 투자자 서명)
+        String transactionHash = (contractPdfRequest.getTransactionHash() != null)
+                ? contractPdfRequest.getTransactionHash()
                 : "[트랜잭션 해시]";
-        String investorSignature = (contractpdfRequest.getInvestorSignature() != null)
-                ? contractpdfRequest.getInvestorSignature()
+        String investorSignature = (contractPdfRequest.getInvestorSignature() != null)
+                ? contractPdfRequest.getInvestorSignature()
                 : "https://contract-image.s3.ap-northeast-2.amazonaws.com/signature/investor_null.png";
 
         // 계약서 PDF 생성 로직
-        // Step 1: Thymeleaf로 HTML 생성 
+        // Step 1: Thymeleaf로 HTML 생성
         Context context = new Context();
-        context.setVariable("investorName", userMock.getUsername());
-        context.setVariable("investorWallet", walletMock.getAddress());
-
-        context.setVariable("companyName", startupMock.getName());
-        context.setVariable("companyAddress", startupDetailsMock.getAddress());
-        context.setVariable("ceoName", startupDetailsMock.getCeoName());
-        context.setVariable("companyRegistrationNumber", startupDetailsMock.getRegistrationNum());
-        context.setVariable("companyWallet", startupMock.getWallet().getAddress());
-        context.setVariable("contractPeriod", startupDetailsMock.getContractPeriod());
-
-        context.setVariable("investmentAmount", contractpdfRequest.getAmount());
+        context.setVariable("investorName", userInfo.getUsername());
+        context.setVariable("investorWallet", userInfo.getWalletAddress());
+        context.setVariable("companyName", startupInfo.getName());
+        context.setVariable("companyAddress", startupInfo.getAddress());
+        context.setVariable("ceoName", startupInfo.getCeoName());
+        context.setVariable("companyRegistrationNumber", startupInfo.getRegistrationNum());
+        context.setVariable("companyWallet", ceoInfo.getWalletAddress());
+        context.setVariable("contractPeriod", startupInfo.getContractPeriod());
+        context.setVariable("investmentAmount", contractPdfRequest.getAmount());
         context.setVariable("contractAt", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy년 MM월 dd일")));
         context.setVariable("transactionHash", transactionHash);
         context.setVariable("investorSignatureUrl", investorSignature);
-        context.setVariable("companySignatureUrl", startupDetailsMock.getSignature());
+        context.setVariable("companySignatureUrl", startupInfo.getSignature());
 
         String htmlContent = templateEngine.process("contract-template", context);
 
@@ -103,12 +100,12 @@ public class ContractServiceImpl implements ContractService{
         // Step 3: S3 버킷에 PDF 업로드
         String bucketName = "contract-image";
 
-        // (프리뷰 계약서일 경우) 파일 이름 앞에 tmp_ 추가
+        // 프리뷰 계약서 파일명 처리
         String prefix;
-        if (!StringUtils.hasText(contractpdfRequest.getTransactionHash())) {
-            prefix = "tmp_" + userMock.getUserId() + "_" + startupMock.getStartupId();
+        if (!StringUtils.hasText(contractPdfRequest.getTransactionHash())) {
+            prefix = "tmp_" + contractPdfRequest.getUserId() + "_" + contractPdfRequest.getStartupId();
         } else {
-            prefix = userMock.getUserId() + "_" + startupMock.getStartupId();
+            prefix = contractPdfRequest.getUserId() + "_" + contractPdfRequest.getStartupId();
         }
         String pdfFileName = "contracts/" + prefix + "_" + System.currentTimeMillis() + ".pdf";
 
@@ -123,39 +120,35 @@ public class ContractServiceImpl implements ContractService{
         return s3Url.toString();
     }
 
-    // 투자 등록
     @Override
     public ContractResponse createContract(ContractRequest contractRequest) {
-        // user api에 user 정보 요청 (contractRequest.getUserId)
-        Users userMock = UserMock.createMockUser();
-
-        // startup api에 startup 정보 요청 (contractRequest.getStartupId)
-        Startup startupMock = StartupMock.createMockStartup();
+        // Startup 정보 조회
+        StartupResponse startupInfo = startupServiceClient.getStartupInfo(contractRequest.getStartupId()).block();
 
         // 스마트 컨트랙트 로직
-        Long campaignId = startupMock.getCampaignId();
         CampaignDto.Investment.Request investRequest = CampaignDto.Investment.Request.builder()
-                        .userId(userMock.getUserId())
-                        .walletPassword(contractRequest.getWalletPassword())
-                        .amount(contractRequest.getAmount())
-                        .build();
-        CampaignDto.Investment.Response investResponse = startupFundingService.invest(campaignId, investRequest);
+                .userId(contractRequest.getUserId())
+                .walletPassword(contractRequest.getWalletPassword())
+                .amount(contractRequest.getAmount())
+                .build();
+        CampaignDto.Investment.Response investResponse = startupFundingService.invest(Long.valueOf(startupInfo.getCampaignId()), investRequest);
 
         // Contract 등록
-        Contract contract = new Contract();
-        contract.setStatus(ContractStatus.BEGIN);
-        contract.setStartupId(contractRequest.getStartupId());
-        contract.setUserId(contractRequest.getUserId());
+        Contract contract = Contract.builder()
+                .status(ContractStatus.BEGIN)
+                .startupId(contractRequest.getStartupId())
+                .userId(contractRequest.getUserId())
+                .build();
         contract = contractRepository.save(contract);
 
         // 최종 계약서 PDF 생성
         ContractPdfRequest contractPdfRequest = ContractPdfRequest.builder()
-                        .userId(contractRequest.getUserId())
-                        .startupId(contractRequest.getStartupId())
-                        .amount(contractRequest.getAmount())
-                        .investorSignature(contractRequest.getInvestorSignature())
-                        .transactionHash(investResponse.getTransactionHash())
-                        .build();
+                .userId(contractRequest.getUserId())
+                .startupId(contractRequest.getStartupId())
+                .amount(contractRequest.getAmount())
+                .investorSignature(contractRequest.getInvestorSignature())
+                .transactionHash(investResponse.getTransactionHash())
+                .build();
         String s3Url = generatePdf(contractPdfRequest);
 
         // ContractDetails 등록
@@ -163,9 +156,9 @@ public class ContractServiceImpl implements ContractService{
         contractDetails.setImgUrl(s3Url);
         contractDetailsRepository.save(contractDetails);
 
-        // 프리뷰 계약서 삭제 : S3 버킷에서 이름이 tmp_로 시작하는 파일을 삭제
+        // 프리뷰 계약서 삭제
         String bucketName = "contract-image";
-        deletePreviewPdf(bucketName, userMock.getUserId().toString(), startupMock.getStartupId().toString());
+        deletePreviewPdf(bucketName, contractRequest.getUserId().toString(), contractRequest.getStartupId().toString());
 
         return new ContractResponse(s3Url);
     }
@@ -173,15 +166,14 @@ public class ContractServiceImpl implements ContractService{
     // 계약 상태에 따른 투자 리스트 조회
     @Override
     public List<ContractListResponse> getContractList(Long userId, String contractStatus) {
-        List<ContractStatus> statuses;
-
         // contractStatus 값에 따라 상태 리스트를 설정
+        List<ContractStatus> statuses;
         if ("active".equalsIgnoreCase(contractStatus)) {
             statuses = Arrays.asList(ContractStatus.BEGIN, ContractStatus.ACTIVE);
         } else if ("completed".equalsIgnoreCase(contractStatus)) {
             statuses = Arrays.asList(ContractStatus.COMPLETED, ContractStatus.CANCELLED);
         } else {
-            throw new IllegalArgumentException("Invalid contract status: " + contractStatus);
+            throw new BusinessException(ErrorCode.INVALID_CONTRACT_STATUS);
         }
 
         // 계약 리스트 조회
@@ -193,85 +185,90 @@ public class ContractServiceImpl implements ContractService{
             // 연관된 ContractDetails 조회
             ContractDetails details = contractDetailsRepository.findByContract_ContractId(contract.getContractId());
             if (details == null) {
-                continue; // contractDetails가 없는 경우 건너뜀
+                continue;
             }
 
-            // startup api에 startup 정보 요청
-            Startup startupMock = StartupMock.createMockStartup();
-            StartupDetails startupDetailsMock = StartupDetailsMock.createMockStartupDetails();
+            // Startup 정보 조회
+            StartupResponse startupInfo = startupServiceClient.getStartupInfo(contract.getStartupId()).block();
 
-            // NULL일 가능성이 있는 필드 처리
-            Double roi = (startupDetailsMock.getRoi() != null) ? startupDetailsMock.getRoi() : null;
-            Double returnToken = (roi != null)
-                    ? details.getTokenAmount() * (1 + roi / 100)
+            // ROI와 반환 토큰 계산
+            Double returnToken = startupInfo.getRoi() != null && details.getTokenAmount() != null
+                    ? details.getTokenAmount() * (1 + startupInfo.getRoi() / 100)
                     : null;
 
-            // 반환 데이터 설정
             LocalDateTime contractDate = "active".equalsIgnoreCase(contractStatus)
                     ? details.getContractAt()
-                    : contract.getSignedAt().plusMonths(startupDetailsMock.getContractPeriod());
+                    : contract.getSignedAt().plusMonths(startupInfo.getContractPeriod());
+
             Double tokenAmount = "active".equalsIgnoreCase(contractStatus)
                     ? details.getTokenAmount()
                     : returnToken;
-            Double progress = "active".equalsIgnoreCase(contractStatus)
-                    ? Double.valueOf(startupMock.getProgress())
-                    : roi;
 
-            // ContractListResponse 객체 생성
-            ContractListResponse contractResponse = new ContractListResponse(
-                    contract.getContractId(),
-                    contractDate,
-                    startupMock.getName(),
-                    tokenAmount,
-                    contract.getStatus(),
-                    progress
-            );
+            Double progress = "active".equalsIgnoreCase(contractStatus)
+                    ? Double.valueOf(startupInfo.getProgress())
+                    : startupInfo.getRoi();
+
+            // 응답 객체 생성 및 추가
+            ContractListResponse contractResponse = ContractListResponse.builder()
+                    .contractId(contract.getContractId())
+                    .contractDate(contractDate)
+                    .startupName(startupInfo.getName())
+                    .tokenAmount(tokenAmount)
+                    .contractStatus(contract.getStatus())
+                    .progress(progress)
+                    .build();
+
             response.add(contractResponse);
         }
+
         return response;
     }
 
     // 계약서 상세 조회
     @Override
     public ContractDetailResponse getContractDetail(Long contractId) {
-        // contractId로 Contract와 ContractDetails 동시에 가져오기
         Contract contract = contractRepository.findByIdWithDetails(contractId)
-                .orElseThrow(() -> new RuntimeException("해당 계약을 찾을 수 없습니다."));
-        ContractDetails contractDetails = contract.getContractDetails();
+                .orElseThrow(() -> new BusinessException(ErrorCode.CONTRACT_NOT_FOUND));
 
-        // Mock 대체 외부 API 호출하여 스타트업 정보 가져오기
-        Startup startupMock = StartupMock.createMockStartup();
-        StartupDetails startupDetailsMock = StartupDetailsMock.createMockStartupDetails();
+        ContractDetails contractDetails = contract.getContractDetails();
+        StartupResponse startupInfo = startupServiceClient.getStartupInfo(contract.getStartupId()).block();
 
         // NULL인 필드 처리
-        LocalDateTime contractBeginAt = (contract.getSignedAt() != null) ? contract.getSignedAt() : null;
-        LocalDateTime contractEndAt = (contractBeginAt != null)
-                ? contract.getSignedAt().plusMonths(startupDetailsMock.getContractPeriod())
-                : null;
-        Double roi = (startupDetailsMock.getRoi() != null) ? startupDetailsMock.getRoi() : null;
-        Double returnToken = (roi != null)
-                ? contractDetails.getTokenAmount() * (1 + roi / 100)
+        LocalDateTime contractBeginAt = contract.getSignedAt();
+        LocalDateTime contractEndAt = contractBeginAt != null
+                ? contractBeginAt.plusMonths(startupInfo.getContractPeriod())
                 : null;
 
-        // ContractDetailResponseDto 생성 및 반환
-        return new ContractDetailResponse(
-                contract.getStatus().toString(),
-                contractDetails.getContractAt(),
-                contractBeginAt,
-                contractEndAt,
-                contractDetails.getTokenAmount(),
-                returnToken,
-                startupMock.getName(),
-                startupMock.getProgress(),
-                roi,
-                startupMock.getLogoUrl(),
-                startupDetailsMock.getDescription(),
-                startupMock.getCategory(),
-                startupDetailsMock.getInvestmentStatus(),
-                startupDetailsMock.getInvestmentRound(),
-                startupDetailsMock.getExpectedRoi(),
-                contractDetails.getImgUrl()
-        );
+        Double returnToken = startupInfo.getRoi() != null && contractDetails.getTokenAmount() != null
+                ? contractDetails.getTokenAmount() * (1 + startupInfo.getRoi() / 100)
+                : null;
+
+        // 투자 진행률을 Integer로 변환
+        Integer process = null;
+        try {
+            process = startupInfo.getProgress() != null ? Integer.valueOf(startupInfo.getProgress()) : null;
+        } catch (NumberFormatException e) {
+            log.error("Failed to parse progress value: {}", startupInfo.getProgress());
+        }
+
+        return ContractDetailResponse.builder()
+                .contractStatus(contract.getStatus().toString())
+                .investAt(contractDetails.getContractAt())
+                .contractBeginAt(contractBeginAt)
+                .contractEndAt(contractEndAt)
+                .investToken(contractDetails.getTokenAmount())
+                .returnToken(returnToken)
+                .startupName(startupInfo.getName())
+                .process(process)
+                .roi(startupInfo.getRoi())
+                .startupLogo(startupInfo.getLogoUrl())
+                .startupDescription(startupInfo.getDescription())
+                .startupCategory(startupInfo.getCategory())
+                .investStatus(startupInfo.getInvestmentStatus())
+                .investRound(null)  // startupInfo에서 제공하지 않는 정보
+                .expectedRoi(startupInfo.getExpectedRoi())
+                .contractPdfUrl(contractDetails.getImgUrl())
+                .build();
     }
 
     // 투자 등록 시 ContractDetails 객체를 생성하는 메서드
