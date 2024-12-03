@@ -10,6 +10,7 @@ spring:
     password: ${MAIL_PASSWORD}
     properties:
       mail:
+        debug: true
         smtp:
           auth: true
           starttls:
@@ -17,7 +18,11 @@ spring:
             required: true
           connection-timeout: 5000
           timeout: 5000
-          write timeout: 5000
+          writetimeout: 5000
+          debug: true
+          max:
+            connections: 10
+            connections.per.host: 10   # 계층 구조로 수정
     auth-code-expiration-millis: ${AUTH_CODE_EXPIRATION_MILLIS:600000} # 기본값 600000 (10분)
 
 service:
