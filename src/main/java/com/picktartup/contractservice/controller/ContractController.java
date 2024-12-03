@@ -2,7 +2,6 @@ package com.picktartup.contractservice.controller;
 
 import com.picktartup.contractservice.common.dto.ApiResponse;
 import com.picktartup.contractservice.dto.*;
-import com.picktartup.contractservice.entity.ContractStatus;
 import com.picktartup.contractservice.entity.Users;
 import com.picktartup.contractservice.mock.UserMock;
 import com.picktartup.contractservice.service.ContractService;
