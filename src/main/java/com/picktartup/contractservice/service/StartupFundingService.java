@@ -65,7 +65,7 @@ public class StartupFundingService {
             long durationInSeconds = request.getDurationInDays() * 24 * 60 * 60;
 
             // 컨트랙트 호출 전 로깅
-            log.debug("컨트랙트 호출 파     라미터 - targetAmount: {} Wei, duration: {} seconds",
+            log.debug("컨트랙트 호출 파라미터 - targetAmount: {} Wei, duration: {} seconds",
                     targetAmountInWei, durationInSeconds);
 
             TransactionReceipt receipt = contract.createCampaign(
@@ -91,8 +91,23 @@ public class StartupFundingService {
                     TokenUtils.fromWei(event.targetAmount),
                     receipt.getTransactionHash());
 
+            //campaignid startupdb 에 저장
+            if (event.campaignId != null) {
+                Integer campaignIdInt = event.campaignId.intValueExact();
+
+                startupServiceClient.saveCampaignId(request.getStartupId(), campaignIdInt)
+                        .subscribe(
+                                unused -> log.info("Successfully saved campaign ID {} for startup {}",
+                                        event.campaignId, request.getStartupId()),
+                                throwable -> log.error("Failed to save campaign ID for startup {}",
+                                        request.getStartupId(), throwable)
+                        );
+            } else {
+                log.error("Campaign ID is null");
+            }
+
             return CampaignDto.Create.Response.builder()
-                    .campaignId(event.campaignId.longValue())
+                    .campaignId(event.campaignId.intValue())
                     .name(request.getName())
                     .description(request.getDescription())
                     .startupWallet(request.getStartupWallet())
@@ -115,15 +130,24 @@ public class StartupFundingService {
 
     @Transactional
     public CampaignDto.Investment.Response invest(
-            Long campaignId,
+            Long startupId,
             CampaignDto.Investment.Request request) {
+
+        // 스타트업 정보 조회
+        StartupResponse startupInfo = startupServiceClient.getStartupInfo(startupId)
+                .blockOptional()
+                .orElseThrow(() -> new BusinessException(ErrorCode.STARTUP_NOT_FOUND));
+
+        Long campaignId = startupInfo.getCampaign_id().longValue();
+
         log.info("투자 시작 - userId: {}, campaignId: {}, amount: {} PICKEN",
-                request.getUserId(), campaignId, request.getAmount());
+                request.getUserId(), startupInfo.getCampaign_id(), request.getAmount());
 
         // 캠페인 상태 확인
         CampaignDto.Status.Response campaignStatus = getCampaignStatus(campaignId);
         validateCampaignStatus(campaignStatus);
 
+        // 투자자 지갑 정보 조회 및 자격증명
         WalletDto.WalletInfo investorWallet = findAndValidateInvestorWallet(request.getUserId());
         log.info("조회된 투자자 지갑 주소 조회: {} ", investorWallet.getAddress());
         log.info("조회된 투자자 키스토어 정보 조회: {} ", investorWallet.getKeystoreFilename());
@@ -144,27 +168,24 @@ public class StartupFundingService {
 
         TokenTransferTransaction savedTransaction = tokenTransferTransactionRepository.save(transaction);
 
+        //토큰 승인 및 투자 실행(smart-contract)
         try {
-            // PICKEN -> Wei 단위로 변환
             BigInteger amountInWei = TokenUtils.toWei(request.getAmount());
-
-            // approve 전 로깅
             log.debug("토큰 승인 요청 - amount: {} Wei", amountInWei);
 
             validateAndApproveTokens(investorCredentials, amountInWei);
 
             StartupFunding contract = loadFundingContract(investorCredentials);
-
-            // 투자 실행 전 로깅
             log.debug("투자 실행 - campaignId: {}, amount: {} Wei",
                     campaignId, amountInWei);
 
             TransactionReceipt receipt = executeInvestment(
                     contract,
                     campaignId,
-                    amountInWei  // Wei 단위로 변환된 값 전달
+                    amountInWei
             );
 
+            //투자 성공 시 이벤트 조회
             List<StartupFunding.InvestmentMadeEventResponse> events =
                     contract.getInvestmentMadeEvents(receipt);
 
@@ -176,21 +197,13 @@ public class StartupFundingService {
 
             StartupFunding.InvestmentMadeEventResponse event = events.get(0);
 
-            // Wei -> PICKEN 변환하여 로깅 및 응답
             Double totalRaisedPICKEN = TokenUtils.fromWei(event.totalRaised);
 
-            // 트랜잭션 완료 처리
             updateTransactionSuccess(savedTransaction, receipt.getTransactionHash());
 
-            // 스타트업 정보 조회
-            StartupResponse startupInfo = startupServiceClient.getStartupInfo(campaignId)
-                    .blockOptional()
-                    .orElseThrow(() -> new BusinessException(ErrorCode.STARTUP_NOT_FOUND));
+            // CEO 정보 조회 후 투자 알림 이메일 알림
+            UserDto.ValidationResponse ceoInfo = userServiceClient.validateUserExists(startupInfo.getCeo_user_id());
 
-            // CEO 정보 조회
-            UserDto.ValidationResponse ceoInfo = userServiceClient.validateUserExists(startupInfo.getCeoUserId());
-
-            // 투자 알림 이메일 발송
             sendInvestmentNotification(
                     ceoInfo.getEmail(),
                     request.getAmount(),
@@ -682,6 +695,7 @@ public class StartupFundingService {
 
                 .append("</div>")
                 .append("</body></html>");
+
 
         mailService.sendEmail(toEmail, title, emailContent.toString()); // HTML 이메일 발송
     }

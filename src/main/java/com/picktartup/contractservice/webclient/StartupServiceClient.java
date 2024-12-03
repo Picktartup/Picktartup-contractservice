@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -38,5 +39,25 @@ public class StartupServiceClient {
                     }
                     return response.getData();
                 });
+    }
+
+    public Mono<Void> saveCampaignId(Long startupId, Integer campaignId) {
+        return startupServiceWebClient.patch()
+                .uri("/api/v1/startups/" + startupId + "/campaign")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(new CampaignIdRequest(campaignId))
+                .retrieve()
+                .onStatus(status -> status.is4xxClientError(), clientResponse -> {
+                    if (clientResponse.statusCode() == HttpStatus.NOT_FOUND) {
+                        return Mono.error(new BusinessException(ErrorCode.STARTUP_NOT_FOUND));
+                    }
+                    return Mono.error(new BusinessException(ErrorCode.STARTUP_SERVICE_ERROR));
+                })
+                .onStatus(status -> status.is5xxServerError(), clientResponse ->
+                        Mono.error(new BusinessException(ErrorCode.STARTUP_SERVICE_ERROR)))
+                .bodyToMono(Void.class);
+    }
+
+    record CampaignIdRequest(Integer campaignId) {
     }
 }

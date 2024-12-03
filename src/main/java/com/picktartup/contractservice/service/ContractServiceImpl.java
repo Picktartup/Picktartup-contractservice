@@ -59,7 +59,7 @@ public class ContractServiceImpl implements ContractService{
         StartupResponse startupInfo = startupServiceClient.getStartupInfo(contractPdfRequest.getStartupId()).block();
 
         // CEO 지갑 정보 조회
-        UserDto.UserInfo ceoInfo = userServiceClient.getUserInfo(startupInfo.getCeoUserId()).block();
+        UserDto.UserInfo ceoInfo = userServiceClient.getUserInfo(startupInfo.getCeo_user_id()).block();
 
         // 프리뷰 계약서 처리 (트랜잭션 해시, 투자자 서명)
         String transactionHash = (contractPdfRequest.getTransactionHash() != null)
@@ -77,9 +77,9 @@ public class ContractServiceImpl implements ContractService{
         context.setVariable("companyName", startupInfo.getName());
         context.setVariable("companyAddress", startupInfo.getAddress());
         context.setVariable("ceoName", startupInfo.getCeoName());
-        context.setVariable("companyRegistrationNumber", startupInfo.getRegistrationNum());
+        context.setVariable("companyRegistrationNumber", startupInfo.getRegistration_num());
         context.setVariable("companyWallet", ceoInfo.getWalletAddress());
-        context.setVariable("contractPeriod", startupInfo.getContractPeriod());
+        context.setVariable("contractPeriod", startupInfo.getContract_period());
         context.setVariable("investmentAmount", contractPdfRequest.getAmount());
         context.setVariable("contractAt", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy년 MM월 dd일")));
         context.setVariable("transactionHash", transactionHash);
@@ -131,7 +131,7 @@ public class ContractServiceImpl implements ContractService{
                 .walletPassword(contractRequest.getWalletPassword())
                 .amount(contractRequest.getAmount())
                 .build();
-        CampaignDto.Investment.Response investResponse = startupFundingService.invest(Long.valueOf(startupInfo.getCampaignId()), investRequest);
+        CampaignDto.Investment.Response investResponse = startupFundingService.invest(Long.valueOf(startupInfo.getCampaign_id()), investRequest);
 
         // Contract 등록
         Contract contract = Contract.builder()
@@ -198,7 +198,7 @@ public class ContractServiceImpl implements ContractService{
 
             LocalDateTime contractDate = "active".equalsIgnoreCase(contractStatus)
                     ? details.getContractAt()
-                    : contract.getSignedAt().plusMonths(startupInfo.getContractPeriod());
+                    : contract.getSignedAt().plusMonths(startupInfo.getContract_period());
 
             Double tokenAmount = "active".equalsIgnoreCase(contractStatus)
                     ? details.getTokenAmount()
@@ -236,7 +236,7 @@ public class ContractServiceImpl implements ContractService{
         // NULL인 필드 처리
         LocalDateTime contractBeginAt = contract.getSignedAt();
         LocalDateTime contractEndAt = contractBeginAt != null
-                ? contractBeginAt.plusMonths(startupInfo.getContractPeriod())
+                ? contractBeginAt.plusMonths(startupInfo.getContract_period())
                 : null;
 
         Double returnToken = startupInfo.getRoi() != null && contractDetails.getTokenAmount() != null
@@ -266,7 +266,7 @@ public class ContractServiceImpl implements ContractService{
                 .startupCategory(startupInfo.getCategory())
                 .investStatus(startupInfo.getInvestmentStatus())
                 .investRound(null)  // startupInfo에서 제공하지 않는 정보
-                .expectedRoi(startupInfo.getExpectedRoi())
+                .expectedRoi(startupInfo.getExpected_roi())
                 .contractPdfUrl(contractDetails.getImgUrl())
                 .build();
     }

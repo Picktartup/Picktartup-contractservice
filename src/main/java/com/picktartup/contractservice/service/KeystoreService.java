@@ -64,6 +64,7 @@ public class KeystoreService {
     }
 
     private void validateKeystoreFileExists(File keystoreFile, String fileName) {
+        log.info("Keystore 파일 경로222: {}", keystoreFile.getAbsolutePath());
         if (!keystoreFile.exists()) {
             log.error("Keystore 파일 없음: {}", fileName);
             throw new BusinessException(
