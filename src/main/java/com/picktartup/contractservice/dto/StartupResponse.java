@@ -16,11 +16,11 @@ public class StartupResponse {
     private String address;
     private String ceoName;
     private String logoUrl;
-    private String registrationNum;
-    private Integer contractPeriod;
+    private String registration_num;
+    private Integer contract_period;
     private String signature;
-    private Long ceoUserId;
-    private Integer campaignId;
-    private Double expectedRoi;
+    private Long ceo_user_id;
+    private Integer campaign_id;
+    private Double expected_roi;
     private Double roi;
 }

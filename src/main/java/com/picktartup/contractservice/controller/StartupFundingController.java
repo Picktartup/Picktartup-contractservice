@@ -31,17 +31,17 @@ public class StartupFundingController {
     }
 
     // 2. 투자하기
-    @PostMapping("/campaigns/{campaignId}/invest")
+    @PostMapping("/campaigns/{startupId}/invest")
     public ResponseEntity<BaseResponse<CampaignDto.Investment.Response>> invest(
-            @PathVariable Long campaignId,
+            @PathVariable Long startupId,
             @RequestBody @Valid CampaignDto.Investment.Request request
     ) {
-        log.info("투자 요청 - campaignId: {}, amount: {}, userId: {}",
-                campaignId, request.getAmount(), request.getUserId());
+        log.info("투자 요청 - startupId: {}, amount: {}, userId: {}",
+                startupId, request.getAmount(), request.getUserId());
 
         return ResponseEntity.ok(
                 BaseResponse.success(
-                        startupFundingService.invest(campaignId, request)
+                        startupFundingService.invest(startupId, request)
                 )
         );
     }

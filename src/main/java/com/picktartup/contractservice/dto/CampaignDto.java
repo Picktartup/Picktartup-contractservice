@@ -16,6 +16,9 @@ public class CampaignDto {
         @Setter
         @Builder
         public static class Request {
+            @NotNull(message="스타트업 아이디는 필수입니다")
+            private Long startupId;
+
             @NotNull(message = "캠페인 이름은 필수입니다")
             private String name;
 
@@ -45,7 +48,7 @@ public class CampaignDto {
         @Getter
         @Builder
         public static class Response {
-            private Long campaignId;
+            private Integer campaignId;
             private String name;
             private String description;
             private String startupWallet;
@@ -90,6 +93,7 @@ public class CampaignDto {
         @Setter
         @Builder
         public static class Request {
+
             @NotNull(message = "사용자 ID는 필수입니다")
             private Long userId;
 
