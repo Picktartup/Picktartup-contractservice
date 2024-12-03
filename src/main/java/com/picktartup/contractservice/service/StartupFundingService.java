@@ -6,10 +6,8 @@ import com.picktartup.contractservice.dto.*;
 import com.picktartup.contractservice.entity.TokenTransferTransaction;
 import com.picktartup.contractservice.entity.TransactionStatus;
 import com.picktartup.contractservice.entity.TransactionType;
-import com.picktartup.contractservice.entity.Wallet;
 import com.picktartup.contractservice.exception.BusinessException;
 import com.picktartup.contractservice.exception.ErrorCode;
-import com.picktartup.contractservice.mock.WalletMock;
 import com.picktartup.contractservice.repository.TokenTransferTransactionRepository;
 import com.picktartup.contractservice.utils.TokenUtils;
 import com.picktartup.contractservice.webclient.StartupServiceClient;
@@ -126,8 +124,9 @@ public class StartupFundingService {
         CampaignDto.Status.Response campaignStatus = getCampaignStatus(campaignId);
         validateCampaignStatus(campaignStatus);
 
-
         WalletDto.WalletInfo investorWallet = findAndValidateInvestorWallet(request.getUserId());
+        log.info("조회된 투자자 지갑 주소 조회: {} ", investorWallet.getAddress());
+        log.info("조회된 투자자 키스토어 정보 조회: {} ", investorWallet.getKeystoreFilename());
         Credentials investorCredentials = loadInvestorCredentials(
                 investorWallet,
                 request.getWalletPassword()
@@ -199,7 +198,6 @@ public class StartupFundingService {
                     campaignId,
                     totalRaisedPICKEN
             );
-
 
             log.info("투자 완료 - userId: {}, campaignId: {}, amount: {} PICKEN, totalRaised: {} PICKEN, txHash: {}",
                     request.getUserId(),
@@ -472,6 +470,7 @@ public class StartupFundingService {
     }
 
     private WalletDto.WalletInfo findAndValidateInvestorWallet(Long userId) {
+        log.info("유저 아이디로 지갑 찾기 userid:{}", userId);
         return walletServiceClient.getWalletInfo(userId)
                 .blockOptional()
                 .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND));

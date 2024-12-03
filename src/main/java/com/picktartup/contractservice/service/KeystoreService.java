@@ -26,6 +26,7 @@ public class KeystoreService {
     private final ObjectMapper objectMapper;
 
     public WalletFile getWalletFile(String keystoreFileName) {
+        log.debug("키스토어 파일 찾아서 검증 {}", keystoreFileName);
         File keystoreFile = resolveKeystoreFile(keystoreFileName);
         validateKeystoreFileExists(keystoreFile, keystoreFileName);
         return readWalletFile(keystoreFile, keystoreFileName);
