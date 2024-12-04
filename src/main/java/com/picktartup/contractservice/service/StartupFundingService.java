@@ -143,6 +143,9 @@ public class StartupFundingService {
         log.info("투자 시작 - userId: {}, campaignId: {}, amount: {} PICKEN",
                 request.getUserId(), startupInfo.getCampaign_id(), request.getAmount());
 
+        log.info("투자 시작 - ceouserId: {}",
+                startupInfo.getCeo_user_id());
+
         // 캠페인 상태 확인
         CampaignDto.Status.Response campaignStatus = getCampaignStatus(campaignId);
         validateCampaignStatus(campaignStatus);
@@ -201,8 +204,12 @@ public class StartupFundingService {
 
             updateTransactionSuccess(savedTransaction, receipt.getTransactionHash());
 
+            log.info("ceo 정보 조회  - ceouserId: {}", startupInfo.getCeo_user_id());
+
             // CEO 정보 조회 후 투자 알림 이메일 알림
             UserDto.ValidationResponse ceoInfo = userServiceClient.validateUserExists(startupInfo.getCeo_user_id());
+
+            log.info("ceo 이메일 조회  - ceoEmail: {}", ceoInfo.getEmail());
 
             sendInvestmentNotification(
                     ceoInfo.getEmail(),
