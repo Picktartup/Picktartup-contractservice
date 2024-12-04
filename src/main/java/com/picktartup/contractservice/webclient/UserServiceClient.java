@@ -45,6 +45,7 @@ public class UserServiceClient {
     }
 
     public UserDto.ValidationResponse validateUserExists(Long userId) {
+        log.info("사용자 검증 시작 - ceduserid: {}", userId);
         try {
             BaseResponse<UserDto.ValidationResponse> response = userServiceWebClient.get()
                     .uri("/api/v1/users/public/" + userId + "/validation")
