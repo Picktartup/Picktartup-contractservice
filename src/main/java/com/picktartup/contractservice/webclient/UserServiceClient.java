@@ -47,7 +47,7 @@ public class UserServiceClient {
     public UserDto.ValidationResponse validateUserExists(Long userId) {
         try {
             BaseResponse<UserDto.ValidationResponse> response = userServiceWebClient.get()
-                    .uri("/api/v1/users/" + userId + "/validation")
+                    .uri("/api/v1/users/public/" + userId + "/validation")
                     .retrieve()
                     .onStatus(status -> status.is4xxClientError(), clientResponse -> {
                         if (clientResponse.statusCode() == HttpStatus.NOT_FOUND) {
