@@ -10,25 +10,27 @@ spring:
     password: ${MAIL_PASSWORD}
     properties:
       mail:
-        debug: true
         smtp:
           auth: true
           starttls:
             enable: true
-            required: true
-          connection-timeout: 5000
+          connectionpool: true
+          poolsize: 2
+          quitwait: false
           timeout: 5000
+          connection-timeout: 5000
           writetimeout: 5000
-          debug: true
-          max:
-            connections: 10
-            connections.per.host: 10   # 계층 구조로 수정
-    auth-code-expiration-millis: ${AUTH_CODE_EXPIRATION_MILLIS:600000} # 기본값 600000 (10분)
+          socketFactory:
+            port: 587
+            class: javax.net.ssl.SSLSocketFactory
+            fallback: false
+        session:
+          mail.smtp.socketFactory.class: javax.net.ssl.SSLSocketFactory
 
 service:
   user:
-    url: http://192.168.0.143:32450/user
+    url: http://192.168.0.142:30798/user
   startup:
-    url: http://192.168.0.143:32450/startup
+    url: http://192.168.0.142:30798/startup
   wallet:
-    url: http://192.168.0.143:32450/wallet
+    url: http://192.168.0.142:30798/wallet
