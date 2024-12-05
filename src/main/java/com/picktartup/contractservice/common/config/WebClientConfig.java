@@ -9,9 +9,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import reactor.netty.http.client.HttpClient;
+
+import java.time.Duration;
 
 @Slf4j
 @Configuration
@@ -32,8 +36,12 @@ public class WebClientConfig {
         return WebClient.builder()
                 .baseUrl(userServiceUrl)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)  // 추가
                 .filter(loggingFilter())
                 .filter(errorHandler())
+                .clientConnector(new ReactorClientHttpConnector(HttpClient.create()
+                        .followRedirect(true)
+                        .responseTimeout(Duration.ofSeconds(10))))  // 추가
                 .build();
     }
 
@@ -42,8 +50,12 @@ public class WebClientConfig {
         return WebClient.builder()
                 .baseUrl(startupServiceUrl)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)  // 추가
                 .filter(loggingFilter())
                 .filter(errorHandler())
+                .clientConnector(new ReactorClientHttpConnector(HttpClient.create()
+                        .followRedirect(true)
+                        .responseTimeout(Duration.ofSeconds(10))))  // 추가
                 .build();
     }
 
