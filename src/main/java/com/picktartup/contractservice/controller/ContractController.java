@@ -36,10 +36,8 @@ public class ContractController {
 
     // 계약 상태에 따른 투자 리스트 조회 : 진행 중 - active / 완료 - completed
     @GetMapping("/status/{contractStatus}")
-    public ApiResponse<List<ContractListResponse>> getContractList(@PathVariable String contractStatus) {
+    public ApiResponse<List<ContractListResponse>> getContractList(@PathVariable String contractStatus, @RequestParam Long userId) {
         // 통합 테스트 때 jwt 토큰으로 userId 받아올 예정
-        Users mockUser = UserMock.createMockUser();
-        Long userId = mockUser.getUserId();
         return ApiResponse.ok(contractService.getContractList(userId, contractStatus));
     }
 
