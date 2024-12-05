@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.*;
 public class StartupFundingController {
 
     private final StartupFundingService startupFundingService;
-
     // 1. 캠페인 생성
     @PostMapping("/campaigns")
     public ResponseEntity<BaseResponse<CampaignDto.Create.Response>> createCampaign(
