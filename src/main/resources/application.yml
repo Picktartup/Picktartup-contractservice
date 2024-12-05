@@ -29,8 +29,8 @@ spring:
 
 service:
   user:
-    url: http://192.168.0.142:32450/user
+    url: https://picktartup.com
   startup:
-    url: http://192.168.0.142:32450/startup
+    url: https://picktartup.com
   wallet:
     url: http://192.168.0.142:32450/wallet
