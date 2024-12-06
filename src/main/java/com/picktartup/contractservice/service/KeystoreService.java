@@ -1,5 +1,8 @@
 package com.picktartup.contractservice.service;
 
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.AmazonS3Exception;
+import com.amazonaws.services.s3.model.S3Object;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.picktartup.contractservice.exception.BusinessException;
 import com.picktartup.contractservice.exception.ErrorCode;
@@ -20,17 +23,28 @@ import java.io.IOException;
 @Slf4j
 public class KeystoreService {
 
-    @Value("${wallet.keystore.directory}")
-    private String keystoreDirectory;
+    @Value("${cloud.aws.s3.bucket}")
+    private String bucket;
 
+    private final AmazonS3 amazonS3Client;
     private final ObjectMapper objectMapper;
 
     public WalletFile getWalletFile(String keystoreFileName) {
-        log.debug("키스토어 파일 찾아서 검증 {}", keystoreFileName);
-        File keystoreFile = resolveKeystoreFile(keystoreFileName);
-        validateKeystoreFileExists(keystoreFile, keystoreFileName);
-        return readWalletFile(keystoreFile, keystoreFileName);
+        log.debug("S3에서 키스토어 파일 조회 {}", keystoreFileName);
+
+        try {
+            // S3에서 직접 객체 읽기
+            S3Object s3Object = amazonS3Client.getObject(bucket, "wallets/" + keystoreFileName);
+            return objectMapper.readValue(s3Object.getObjectContent(), WalletFile.class);
+        } catch (AmazonS3Exception e) {
+            log.error("S3에서 Keystore 파일을 찾을 수 없음: {}", keystoreFileName);
+            throw new BusinessException(ErrorCode.KEYSTORE_FILE_NOT_FOUND);
+        } catch (IOException e) {
+            log.error("Keystore 파일 읽기 실패: {}", keystoreFileName, e);
+            throw new BusinessException(ErrorCode.KEYSTORE_READ_FAILED);
+        }
     }
+
 
     public String decryptPrivateKey(WalletFile walletFile, String password) {
         try {
@@ -55,24 +69,7 @@ public class KeystoreService {
         }
     }
 
-    // Private helper methods
-    private File resolveKeystoreFile(String keystoreFileName) {
-        File keystoreDir = new File(keystoreDirectory);
-        File keystoreFile = new File(keystoreDir, keystoreFileName);
-        log.debug("Keystore 파일 경로: {}", keystoreFile.getAbsolutePath());
-        return keystoreFile;
-    }
 
-    private void validateKeystoreFileExists(File keystoreFile, String fileName) {
-        log.info("Keystore 파일 경로222: {}", keystoreFile.getAbsolutePath());
-        if (!keystoreFile.exists()) {
-            log.error("Keystore 파일 없음: {}", fileName);
-            throw new BusinessException(
-                    ErrorCode.KEYSTORE_FILE_NOT_FOUND,
-                    String.format("Keystore 파일을 찾을 수 없습니다: %s", fileName)
-            );
-        }
-    }
 
     private WalletFile readWalletFile(File keystoreFile, String fileName) {
         try {
