@@ -27,10 +27,15 @@ spring:
         session:
           mail.smtp.socketFactory.class: javax.net.ssl.SSLSocketFactory
 
+cloud:
+  aws:
+    s3:
+      bucket: ${KEYSTORE_BUCKET}
+
 service:
   user:
     url: https://picktartup.com
   startup:
     url: https://picktartup.com
   wallet:
-    url: http://192.168.0.142:32450/wallet
+    url: https://192.168.0.141:31158/wallet

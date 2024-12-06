@@ -2,6 +2,8 @@ package com.picktartup.contractservice.common.config;
 
 import com.picktartup.contractservice.exception.BusinessException;
 import com.picktartup.contractservice.exception.ErrorCode;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,6 +17,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
 
+import javax.net.ssl.SSLException;
 import java.time.Duration;
 
 @Slf4j
@@ -60,12 +63,28 @@ public class WebClientConfig {
     }
 
     @Bean
-    public WebClient walletServiceWebClient() { // Wallet WebClient 추가
+    public WebClient walletServiceWebClient() {
+        HttpClient httpClient = HttpClient.create()
+                .secure(sslSpec -> {
+                    try {
+                        sslSpec.sslContext(
+                                SslContextBuilder.forClient()
+                                        .trustManager(InsecureTrustManagerFactory.INSTANCE) // 신뢰할 수 없는 인증서 허용
+                                        .build()
+                        );
+                    } catch (SSLException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .followRedirect(true)
+                .responseTimeout(Duration.ofSeconds(10)); // 타임아웃 설정
+
         return WebClient.builder()
                 .baseUrl(walletServiceUrl)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .filter(loggingFilter())
-                .filter(errorHandler())
+                .filter(loggingFilter()) // 로깅 필터 추가
+                .filter(errorHandler()) // 에러 핸들러 추가
+                .clientConnector(new ReactorClientHttpConnector(httpClient)) // HttpClient 연결
                 .build();
     }
 
