@@ -24,8 +24,8 @@ public class Web3jConfig {
     @Value("${contract.admin.private-key}")
     private String adminPrivateKey;
 
-    @Value("${wallet.keystore.directory}")
-    private String keystoreDirectory;
+    //@Value("${wallet.keystore.directory}")
+    //private String keystoreDirectory;
 
     @Bean
     public Web3j web3j() {
@@ -52,8 +52,8 @@ public class Web3jConfig {
         return new DefaultGasProvider();
     }
 
-    @Bean
-    public String keystoreDirectory() {
-        return keystoreDirectory;
-    }
+    //@Bean
+    //public String keystoreDirectory() {
+    //    return keystoreDirectory;
+    //}
 }

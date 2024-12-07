@@ -7,6 +7,7 @@ import com.picktartup.contractservice.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -19,9 +20,10 @@ import reactor.core.publisher.Mono;
 public class UserServiceClient {
     private final WebClient userServiceWebClient;
 
-    public Mono<UserDto.UserInfo> getUserInfo(Long userId) {
+    public Mono<UserDto.UserInfo> getUserInfo(Long userId, String authToken) {
         return userServiceWebClient.get()
                 .uri("/api/v1/users/auth/" + userId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
                 .retrieve()
                 .onStatus(status -> status.is4xxClientError(), clientResponse -> {
                     if (clientResponse.statusCode() == HttpStatus.NOT_FOUND) {
