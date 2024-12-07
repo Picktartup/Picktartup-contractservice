@@ -41,10 +41,6 @@ bsc:
   network:
     url: ${BSC_NETWORK_URL}
 
-wallet:
-  keystore:
-    directory: /app/keystore
-
 contract:
   token:
     address: ${CONTRACT_TOKEN_ADDRESS}

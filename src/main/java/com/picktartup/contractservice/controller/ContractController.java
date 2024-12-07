@@ -7,6 +7,7 @@ import com.picktartup.contractservice.mock.UserMock;
 import com.picktartup.contractservice.service.ContractService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,17 +22,17 @@ public class ContractController {
 
     // 계약서 PDF 생성
     @PostMapping("/pdf")
-    public ApiResponse<String> generatePdf(@RequestBody ContractPdfRequest contractPdfRequest) {
-        return ApiResponse.ok(contractService.generatePdf(contractPdfRequest));
+    public ApiResponse<String> generatePdf(@RequestBody ContractPdfRequest contractPdfRequest, @RequestHeader(HttpHeaders.AUTHORIZATION) String authToken) {
+        return ApiResponse.ok(contractService.generatePdf(contractPdfRequest, authToken));
     }
 
     // 계약 생성
     @PostMapping("/transaction")
-    public ApiResponse<ContractResponse> createContract(@RequestBody ContractRequest contractRequest) {
+    public ApiResponse<ContractResponse> createContract(@RequestBody ContractRequest contractRequest, @RequestHeader(HttpHeaders.AUTHORIZATION) String authToken) {
         log.info("투자 요청 - startupId: {}, amount: {}, userId: {}",
                 contractRequest.getStartupId(), contractRequest.getAmount(), contractRequest.getUserId());
 
-        return ApiResponse.ok(contractService.createContract(contractRequest));
+        return ApiResponse.ok(contractService.createContract(contractRequest, authToken));
     }
 
     // 계약 상태에 따른 투자 리스트 조회 : 진행 중 - active / 완료 - completed

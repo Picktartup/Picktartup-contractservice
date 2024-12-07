@@ -44,7 +44,7 @@ public class WebClientConfig {
                 .filter(errorHandler())
                 .clientConnector(new ReactorClientHttpConnector(HttpClient.create()
                         .followRedirect(true)
-                        .responseTimeout(Duration.ofSeconds(10))))  // 추가
+                        .responseTimeout(Duration.ofSeconds(20))))  // 추가
                 .build();
     }
 
@@ -58,7 +58,7 @@ public class WebClientConfig {
                 .filter(errorHandler())
                 .clientConnector(new ReactorClientHttpConnector(HttpClient.create()
                         .followRedirect(true)
-                        .responseTimeout(Duration.ofSeconds(10))))  // 추가
+                        .responseTimeout(Duration.ofSeconds(20))))  // 추가
                 .build();
     }
 
@@ -76,8 +76,7 @@ public class WebClientConfig {
                         throw new RuntimeException(e);
                     }
                 })
-                .followRedirect(true)
-                .responseTimeout(Duration.ofSeconds(10)); // 타임아웃 설정
+                .followRedirect(true);
 
         return WebClient.builder()
                 .baseUrl(walletServiceUrl)

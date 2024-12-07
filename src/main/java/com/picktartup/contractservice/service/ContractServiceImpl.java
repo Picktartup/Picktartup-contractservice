@@ -15,8 +15,10 @@ import com.picktartup.contractservice.webclient.StartupServiceClient;
 import com.picktartup.contractservice.webclient.UserServiceClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
@@ -51,77 +53,133 @@ public class ContractServiceImpl implements ContractService{
 
     // 계약서 PDF 생성
     @Override
-    public String generatePdf(ContractPdfRequest contractPdfRequest) {
-        // User 정보 조회
-        UserDto.UserInfo userInfo = userServiceClient.getUserInfo(contractPdfRequest.getUserId()).block();
+    public String generatePdf(ContractPdfRequest contractPdfRequest, @RequestHeader(HttpHeaders.AUTHORIZATION) String authToken) {
+        // Step 1: User 정보 조회
+        UserDto.UserInfo userInfo = null;
+        try {
+            userInfo = userServiceClient.getUserInfo(contractPdfRequest.getUserId(), authToken.substring(7)).block();
+            if (userInfo == null) {
+                System.out.println("userInfo is null");
+            } else {
+                System.out.println("userInfo: " + userInfo);
+            }
+        } catch (Exception e) {
+            System.out.println("Error fetching user info: " + e.getMessage());
+            e.printStackTrace();
+        }
 
-        // Startup 정보 조회
-        StartupResponse startupInfo = startupServiceClient.getStartupInfo(contractPdfRequest.getStartupId()).block();
+        // Step 2: Startup 정보 조회
+        StartupResponse startupInfo = null;
+        try {
+            startupInfo = startupServiceClient.getStartupInfo(contractPdfRequest.getStartupId()).block();
+            if (startupInfo == null) {
+                System.out.println("startupInfo is null");
+            } else {
+                System.out.println("startupInfo: " + startupInfo);
+            }
+        } catch (Exception e) {
+            System.out.println("Error fetching startup info: " + e.getMessage());
+            e.printStackTrace();
+        }
 
-        // CEO 지갑 정보 조회
-        UserDto.UserInfo ceoInfo = userServiceClient.getUserInfo(startupInfo.getCeo_user_id()).block();
+        // Step 3: CEO 정보 조회
+        UserDto.UserInfo ceoInfo = null;
+        try {
+            ceoInfo = userServiceClient.getUserInfo(startupInfo != null ? startupInfo.getCeo_user_id() : null, authToken.substring(7)).block();
+            if (ceoInfo == null) {
+                System.out.println("ceoInfo is null");
+            } else {
+                System.out.println("ceoInfo: " + ceoInfo);
+            }
+        } catch (Exception e) {
+            System.out.println("Error fetching CEO info: " + e.getMessage());
+            e.printStackTrace();
+        }
 
-        // 프리뷰 계약서 처리 (트랜잭션 해시, 투자자 서명)
+        // Step 4: 계약서 처리 (트랜잭션 해시, 투자자 서명)
         String transactionHash = (contractPdfRequest.getTransactionHash() != null)
                 ? contractPdfRequest.getTransactionHash()
                 : "[트랜잭션 해시]";
+        System.out.println("transactionHash: " + transactionHash);
+
         String investorSignature = (contractPdfRequest.getInvestorSignature() != null)
                 ? contractPdfRequest.getInvestorSignature()
                 : "https://contract-image.s3.ap-northeast-2.amazonaws.com/signature/investor_null.png";
+        String startupSignature = (startupInfo.getSignature() != null)
+                ? startupInfo.getSignature()
+                : "https://contract-image.s3.ap-northeast-2.amazonaws.com/signature/dummyStartup.png";
+        System.out.println("investorSignature: " + investorSignature);
 
-        // 계약서 PDF 생성 로직
-        // Step 1: Thymeleaf로 HTML 생성
+        // Step 5: Thymeleaf로 HTML 생성
         Context context = new Context();
-        context.setVariable("investorName", userInfo.getUsername());
-        context.setVariable("investorWallet", userInfo.getWalletAddress());
-        context.setVariable("companyName", startupInfo.getName());
-        context.setVariable("companyAddress", startupInfo.getAddress());
-        context.setVariable("ceoName", startupInfo.getCeoName());
-        context.setVariable("companyRegistrationNumber", startupInfo.getRegistration_num());
-        context.setVariable("companyWallet", ceoInfo.getWalletAddress());
-        context.setVariable("contractPeriod", startupInfo.getContract_period());
-        context.setVariable("investmentAmount", contractPdfRequest.getAmount());
-        context.setVariable("contractAt", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy년 MM월 dd일")));
-        context.setVariable("transactionHash", transactionHash);
-        context.setVariable("investorSignatureUrl", investorSignature);
-        context.setVariable("companySignatureUrl", startupInfo.getSignature());
+        try {
+            context.setVariable("investorName", userInfo != null ? userInfo.getUsername() : " ");
+            context.setVariable("investorWallet", userInfo != null ? userInfo.getWalletAddress() : " ");
+            context.setVariable("companyName", startupInfo != null ? startupInfo.getName() : " ");
+            context.setVariable("companyAddress", startupInfo != null ? startupInfo.getAddress() : " ");
+            context.setVariable("ceoName", startupInfo != null ? startupInfo.getCeoName() : " ");
+            context.setVariable("companyRegistrationNumber", startupInfo != null ? startupInfo.getRegistration_num() : " ");
+            context.setVariable("companyWallet", ceoInfo != null ? ceoInfo.getWalletAddress() : " ");
+            context.setVariable("contractPeriod", startupInfo != null ? startupInfo.getContract_period() : " ");
+            context.setVariable("investmentAmount", contractPdfRequest.getAmount());
+            context.setVariable("contractAt", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy년 MM월 dd일")));
+            context.setVariable("transactionHash", transactionHash);
+            context.setVariable("investorSignatureUrl", investorSignature);
+            context.setVariable("companySignatureUrl", startupSignature);
+
+            System.out.println("HTML content generated successfully.");
+        } catch (Exception e) {
+            System.out.println("Error processing Thymeleaf template: " + e.getMessage());
+            e.printStackTrace();
+        }
 
         String htmlContent = templateEngine.process("contract-template", context);
 
-        // Step 2: HTML를 PDF로 변환
+        // Step 6: HTML를 PDF로 변환
         ByteArrayOutputStream pdfOutputStream = new ByteArrayOutputStream();
         try {
             HtmlConverter.convertToPdf(new ByteArrayInputStream(htmlContent.getBytes(StandardCharsets.UTF_8)), pdfOutputStream);
+            System.out.println("PDF conversion successful.");
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            System.out.println("Error converting HTML to PDF: " + e.getMessage());
+            e.printStackTrace();
         }
+
         byte[] pdfBytes = pdfOutputStream.toByteArray();
 
-        // Step 3: S3 버킷에 PDF 업로드
+        // Step 7: S3 버킷에 PDF 업로드
         String bucketName = "contract-image";
-
-        // 프리뷰 계약서 파일명 처리
-        String prefix;
-        if (!StringUtils.hasText(contractPdfRequest.getTransactionHash())) {
-            prefix = "tmp_" + contractPdfRequest.getUserId() + "_" + contractPdfRequest.getStartupId();
-        } else {
-            prefix = contractPdfRequest.getUserId() + "_" + contractPdfRequest.getStartupId();
-        }
+        String prefix = !StringUtils.hasText(contractPdfRequest.getTransactionHash())
+                ? "tmp_" + contractPdfRequest.getUserId() + "_" + contractPdfRequest.getStartupId()
+                : contractPdfRequest.getUserId() + "_" + contractPdfRequest.getStartupId();
         String pdfFileName = "contracts/" + prefix + "_" + System.currentTimeMillis() + ".pdf";
 
         ObjectMetadata metadata = new ObjectMetadata();
         metadata.setContentType("application/pdf");
         metadata.setContentLength(pdfBytes.length);
+        try {
+            s3Client.putObject(bucketName, pdfFileName, new ByteArrayInputStream(pdfBytes), metadata);
+            System.out.println("PDF uploaded to S3 successfully.");
+        } catch (Exception e) {
+            System.out.println("Error uploading PDF to S3: " + e.getMessage());
+            e.printStackTrace();
+        }
 
-        s3Client.putObject(bucketName, pdfFileName, new ByteArrayInputStream(pdfBytes), metadata);
+        // Step 8: S3 URL 반환
+        try {
+            URL s3Url = s3Client.getUrl(bucketName, pdfFileName);
+            System.out.println("S3 URL: " + s3Url);
+            return s3Url.toString();
+        } catch (Exception e) {
+            System.out.println("Error getting S3 URL: " + e.getMessage());
+            e.printStackTrace();
+        }
 
-        // Step 4: S3 버킷에 생성된 계약서 URL 가져오기
-        URL s3Url = s3Client.getUrl(bucketName, pdfFileName);
-        return s3Url.toString();
+        return null;
     }
 
     @Override
-    public ContractResponse createContract(ContractRequest contractRequest) {
+    public ContractResponse createContract(ContractRequest contractRequest, @RequestHeader(HttpHeaders.AUTHORIZATION) String authToken) {
         // Startup 정보 조회
         StartupResponse startupInfo = startupServiceClient.getStartupInfo(contractRequest.getStartupId()).block();
 
@@ -131,7 +189,7 @@ public class ContractServiceImpl implements ContractService{
                 .walletPassword(contractRequest.getWalletPassword())
                 .amount(contractRequest.getAmount())
                 .build();
-        CampaignDto.Investment.Response investResponse = startupFundingService.invest(Long.valueOf(startupInfo.getCampaign_id()), investRequest);
+        CampaignDto.Investment.Response investResponse = startupFundingService.invest(Long.valueOf(startupInfo.getStartupId()), investRequest);
 
         // Contract 등록
         Contract contract = Contract.builder()
@@ -149,7 +207,7 @@ public class ContractServiceImpl implements ContractService{
                 .investorSignature(contractRequest.getInvestorSignature())
                 .transactionHash(investResponse.getTransactionHash())
                 .build();
-        String s3Url = generatePdf(contractPdfRequest);
+        String s3Url = generatePdf(contractPdfRequest, authToken);
 
         // ContractDetails 등록
         ContractDetails contractDetails = generateCDs(contractRequest, contract);
