@@ -323,7 +323,7 @@ public class ContractServiceImpl implements ContractService{
                 .startupDescription(startupInfo.getDescription())
                 .startupCategory(startupInfo.getCategory())
                 .investStatus(startupInfo.getInvestmentStatus())
-                .investRound(null)  // startupInfo에서 제공하지 않는 정보
+                .investRound(startupInfo.getCurrent_round())  // startupInfo에서 제공하지 않는 정보
                 .expectedRoi(startupInfo.getExpected_roi())
                 .contractPdfUrl(contractDetails.getImgUrl())
                 .build();
