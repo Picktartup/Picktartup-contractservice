@@ -16,6 +16,7 @@ public class StartupResponse {
     private String address;
     private String ceoName;
     private String logoUrl;
+    private String current_round;
     private String registration_num;
     private Integer contract_period;
     private String signature;
